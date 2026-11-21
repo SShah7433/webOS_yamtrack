@@ -101,14 +101,16 @@ jobs:
             --publish 127.0.0.1:8765:8765 \
             --env YAMTRACK_URL=http://yamtrack.test:8000 \
             --env TV_PUBLIC_URL=http://127.0.0.1:8765 "$image"
-          curl --fail --silent --show-error --output /dev/null \
+          probe_error=$(curl --fail --silent --output /dev/null --write-out '%{errormsg}' \
             --retry 30 --retry-all-errors --retry-delay 1 --retry-max-time 30 --max-time 3 \
-            http://127.0.0.1:8765/__tv/ || {
+            http://127.0.0.1:8765/__tv/) || {
               result=$?
+              printf '::error::Helper readiness probe failed (curl %s): %s\n' "$result" "$probe_error"
               docker inspect --format '{{json .State}}' yamtrack-helper-ci || true
               docker logs yamtrack-helper-ci || true
               exit "$result"
             }
+          echo 'Helper readiness check passed.'
       - name: Export the tested helper image
         if: github.ref_type == 'tag'
         shell: bash
