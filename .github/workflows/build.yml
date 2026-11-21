@@ -145,6 +145,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      packages: write
     env:
       VERSION: ${{ needs.build.outputs.version }}
     steps:
@@ -162,6 +163,35 @@ jobs:
           pattern: yamtrack-helper-${{ env.VERSION }}-*
           path: dist
           merge-multiple: true
+      - name: Publish the tested helper images to GitHub Container Registry
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        working-directory: dist
+        shell: bash
+        run: |
+          repository=$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+          image="ghcr.io/$repository"
+          platforms=(linux/amd64 linux/arm64 linux/arm/v7)
+          suffixes=(linux-amd64 linux-arm64 linux-armv7)
+          for suffix in "${suffixes[@]}"; do
+            sha256sum --check -- "yamtrack-helper-$VERSION-$suffix.tar.gz.sha256"
+          done
+
+          printf '%s\n' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          references=()
+          for i in "${!platforms[@]}"; do
+            platform=${platforms[i]}
+            suffix=${suffixes[i]}
+            reference="$image:$VERSION-$suffix"
+            docker image load --input "yamtrack-helper-$VERSION-$suffix.tar.gz"
+            docker image tag "yamtrack-helper:$VERSION" "$reference"
+            docker image push --platform "$platform" "$reference"
+            references+=("$reference")
+          done
+
+          docker manifest create "$image:$VERSION" "${references[@]}"
+          docker manifest annotate "$image:$VERSION" "$image:$VERSION-linux-armv7" --variant v7
+          docker manifest push --purge "$image:$VERSION"
       - name: Publish the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
