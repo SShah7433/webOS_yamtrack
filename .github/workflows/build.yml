@@ -15,7 +15,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.manifest.outputs.version }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -25,18 +25,26 @@ jobs:
           python-version: '3.12'
           cache: pip
 
-      - name: Check the app version
-        id: manifest
+      - name: Set the build version
+        id: version
         shell: bash
         run: |
-          version=$(jq -er '.version | strings' app/appinfo.json)
-          if [[ ! "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-            echo "::error::app/appinfo.json must specify an X.Y.Z version."
-            exit 1
-          fi
-          if [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" != "v$version" ]]; then
-            echo "::error::The Git tag must match the app manifest version (v$version)."
-            exit 1
+          version_pattern='(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)'
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            if [[ ! "$GITHUB_REF_NAME" =~ ^v$version_pattern$ ]]; then
+              echo "::error::Release tags must use the form vX.Y.Z."
+              exit 1
+            fi
+            version=${GITHUB_REF_NAME#v}
+            # Stamp the runner's copy so the IPK and bundled source share the release version.
+            jq --arg version "$version" '.version = $version' app/appinfo.json > "$RUNNER_TEMP/appinfo.json"
+            mv "$RUNNER_TEMP/appinfo.json" app/appinfo.json
+          else
+            version=$(jq -er '.version | strings' app/appinfo.json)
+            if [[ ! "$version" =~ ^$version_pattern$ ]]; then
+              echo "::error::app/appinfo.json must specify an X.Y.Z version."
+              exit 1
+            fi
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
@@ -55,7 +63,7 @@ jobs:
       - name: Upload webOS artifacts
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: yamtrack-webos-${{ steps.manifest.outputs.version }}
+          name: yamtrack-webos-${{ steps.version.outputs.version }}
           path: |
             dist/*.ipk
             dist/*.ipk.sha256

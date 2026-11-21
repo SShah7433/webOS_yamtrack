@@ -127,7 +127,7 @@ These color-key shortcuts apply while the Yamtrack app is running. Any Glasshous
 
 GitHub Actions tests the helper, smoke-tests the Docker image, and builds the webOS IPK, SHA-256 checksum, and deployment bundle for every branch push and pull request. Find those files in the `yamtrack-webos-<version>` artifact for the run.
 
-Set `version` in `app/appinfo.json`, commit it, and push a matching `v<version>` tag. For version `0.1.17`, the tag is `v0.1.17`. The workflow attaches the webOS files and three smoke-tested Docker image archives with checksums to the same GitHub Release.
+Push a `vX.Y.Z` tag, such as `v0.1.18`, on the commit you want to release. The workflow uses the tag version for the packaged app manifest and release artifacts. Local and untagged builds use the version in `app/appinfo.json`. The workflow attaches the webOS files and three smoke-tested Docker image archives with checksums to the same GitHub Release.
 
 Download the helper archive for your Docker host from that release. On a Raspberry Pi 5, use `linux-arm64` for 64-bit Raspberry Pi OS or `linux-armv7` for 32-bit. Use `linux-amd64` on an Intel or AMD PC. On the Docker host, run the commands below with the filename for your platform. [Docker image loading](https://docs.docker.com/reference/cli/docker/image/load/)
 
