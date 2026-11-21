@@ -41,7 +41,7 @@ The helper uses the following paths and defaults. [Compose configuration](compos
 
 From a phone on your home Wi-Fi, open `/__tv/pair` at `TV_PUBLIC_URL`. Seeing a code-entry form confirms the helper is reachable. If necessary, allow TCP port **8765** from your LAN in the host's firewall. The helper container also needs to reach `YAMTRACK_URL`.
 
-The helper is intended for your trusted LAN. It handles authenticated sessions over the existing local HTTP connection; keep port 8765 off the public internet. `data/sessions.json` contains session secrets, is created with mode `0600`, and should stay out of source control. Passwords are forwarded only during the normal phone login and are not saved. Request logging is disabled.
+The helper is intended for your trusted LAN. It handles authenticated sessions over the existing local HTTP connection; keep port 8765 off the public internet. `data/sessions.json` contains session secrets, is created with mode `0600`, and should stay out of source control. Passwords are forwarded only during the normal phone login and are not saved. Compose logs include Waitress diagnostics and Flask request methods, handler names, and response statuses. The access log omits paths and query strings, which can contain calendar tokens or pairing codes.
 
 If a container on your host cannot reach the host's LAN IP, join the helper to Yamtrack's Docker network and set `YAMTRACK_URL` to its Compose service address, for example `http://yamtrack:8000`. Keep `TV_PUBLIC_URL` at the LAN address that phones and the TV use. The upstream hostname must already be allowed by Yamtrack's Django `ALLOWED_HOSTS` setting.
 

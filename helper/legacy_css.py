@@ -7,6 +7,10 @@ import math
 import re
 
 
+TRANSFORM_PARTS = ("translate", "rotate", "scale")
+LEGACY_TRANSFORM = " ".join("var(--ytv-%s,)" % prop for prop in (*TRANSFORM_PARTS, "transform"))
+
+
 def split_list(text):
     return [part for part, _ in tokens(text, ",") if part]
 
@@ -139,11 +143,31 @@ def declaration(text):
         "inset-inline-start": ("left",), "inset-inline-end": ("right",),
         "inset-block-start": ("top",), "inset-block-end": ("bottom",),
     }
+    if name in ("gap", "row-gap", "column-gap"):
+        return "grid-%s:%s;%s:%s;" % (name, value, name, value)
+    if name == "inset":
+        parts = [part for part, _ in tokens(value, " \t\r\n") if part]
+        if len(parts) == 1:
+            parts *= 4
+        elif len(parts) == 2:
+            parts *= 2
+        elif len(parts) == 3:
+            parts.append(parts[1])
+        return "".join("%s:%s;" % pair for pair in zip(("top", "right", "bottom", "left"), parts))
     if name in logical:
-        return "".join("%s:%s;" % (prop, value) for prop in logical[name])
-    if name == "translate":
-        parts = value.split()
-        return "transform:translate(%s);" % ",".join(parts)
+        parts = [part for part, _ in tokens(value, " \t\r\n") if part] if len(logical[name]) == 2 else [value]
+        return "".join("%s:%s;" % pair for pair in zip(logical[name], parts * 2))
+    if name.startswith("--tw-scale-") and re.fullmatch(r"[\d.]+%", value):
+        value = "%g" % (float(value[:-1]) / 100)
+    if name in TRANSFORM_PARTS:
+        parts = [part for part, _ in tokens(value, " \t\r\n") if part]
+        if name == "scale":
+            parts = ["%g" % (float(part[:-1]) / 100) if re.fullmatch(r"[\d.]+%", part) else part for part in parts]
+        if len(parts) <= (1 if name == "rotate" else 2):
+            component = "initial" if value == "none" else "%s(%s)" % (name, ",".join(parts))
+            return "--ytv-%s:%s;transform:%s;" % (name, component, LEGACY_TRANSFORM)
+    if name == "transform" and value.startswith("var(--tw-rotate-x,"):
+        return "--ytv-transform:%s;transform:%s;" % (value, LEGACY_TRANSFORM)
     if name == "opacity" and re.fullmatch(r"[\d.]+%", value):
         value = "%g" % (float(value[:-1]) / 100)
     if name == "border-radius" and value == "calc(infinity * 1px)":
@@ -152,7 +176,7 @@ def declaration(text):
 
 
 def lower_css(source):
-    defaults = {}
+    defaults = {"--ytv-" + prop: "initial" for prop in (*TRANSFORM_PARTS, "transform")}
 
     def emit(nodes, parents=None):
         output = []

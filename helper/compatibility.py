@@ -22,7 +22,8 @@ ALPINE_REWRITES = {
 
 
 def rewrite_html(body):
-    scripts = (FONT_LINKS.encode() + b'<link rel="stylesheet" href="/__tv/client.css">'
+    scripts = (FONT_LINKS.encode() + b'<link rel="stylesheet" href="/__tv/compat.css">'
+               b'<link rel="stylesheet" href="/__tv/client.css">'
                b'<script defer src="/__tv/client.js"></script>'
                b'<script defer src="/__tv/navigation.js"></script>')
     # HTMX returns HTML fragments too; inject only into full documents.

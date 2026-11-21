@@ -4,6 +4,7 @@ import hashlib
 import html
 import http.client
 import json
+import logging
 import os
 from pathlib import Path
 import re
@@ -85,6 +86,12 @@ class YamtrackPath(PathConverter):
     regex = r"(?!__tv/)[^/].*?"
 
 
+class YamtrackApp(Flask):
+    def log_exception(self, exc_info):
+        self.logger.error("Exception handling %r %s", request.method,
+                          request.endpoint or "unmatched", exc_info=exc_info)
+
+
 def configured_origin(name, value):
     value = os.environ.get(name, "") if value is None else value
     message = f"Set {name} to an HTTP(S) origin with a host and optional port."
@@ -109,11 +116,10 @@ def create_app(upstream_url=None, public_url=None, state_path=None, *, upstream_
     public = configured_origin("TV_PUBLIC_URL", public_url)
     public_url = public.geturl()
 
-    app = Flask(__name__, static_folder=None)
+    app = YamtrackApp(__name__, static_folder=None)
     app.config["MAX_CONTENT_LENGTH"] = MAX_BODY
     app.url_map.merge_slashes = False
     app.url_map.converters["yamtrack"] = YamtrackPath
-    app.logger.disabled = True  # Request URLs can contain pairing codes or calendar tokens.
     state = State(state_path)
     app.extensions["yamtrack_tv_state"] = state
     if upstream_request is None:
@@ -150,9 +156,13 @@ def create_app(upstream_url=None, public_url=None, state_path=None, *, upstream_
             "Referrer-Policy": "same-origin",
             "X-Frame-Options": "DENY",
         })
+        # Yamtrack paths and query strings can contain calendar tokens and pairing codes.
+        app.logger.info("%r %s %d", request.method, request.endpoint or "unmatched", response.status_code)
         return response
 
-    def unavailable(_error):
+    def unavailable(error):
+        app.logger.warning("Yamtrack request failed while handling %s (%s)",
+                           request.endpoint, type(error).__name__)
         return page("Yamtrack is unavailable",
                     '<p>Check that Yamtrack is running at ' + html.escape(upstream.geturl())
                     + '.</p><a href="/">Try again</a>', 502)
@@ -160,7 +170,7 @@ def create_app(upstream_url=None, public_url=None, state_path=None, *, upstream_
     app.register_error_handler(OSError, unavailable)
     app.register_error_handler(http.client.HTTPException, unavailable)
 
-    @app.get("/__tv/<any(pair.css,pair.js,qr.js,client.css,client.js,compat.js,navigation.js,fonts.css):filename>")
+    @app.get("/__tv/<any(pair.css,pair.js,qr.js,client.css,client.js,compat.css,compat.js,navigation.js,fonts.css):filename>")
     def static_asset(filename):
         mime = "text/css" if filename.endswith(".css") else "application/javascript"
         response = send_from_directory(STATIC, filename, mimetype=mime, conditional=False, etag=False)
@@ -296,6 +306,7 @@ def create_app(upstream_url=None, public_url=None, state_path=None, *, upstream_
 def main():
     from waitress import serve
 
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     bind = os.environ.get("TV_BIND", "0.0.0.0")
     port = int(os.environ.get("TV_PORT", "8765"))
     # Proxy requests hold a worker while waiting for Yamtrack. Leave room for a
@@ -311,7 +322,7 @@ def main():
     except ValueError as error:
         raise SystemExit(str(error)) from None
     serve(app, host=bind, port=port, threads=threads, ident=SERVER_NAME, max_request_body_size=MAX_BODY,
-          log_socket_errors=False)
+          log_socket_errors=True)
 
 
 if __name__ == "__main__":

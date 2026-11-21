@@ -1,0 +1,73 @@
+/* Shared layout fallbacks for the TV browser. */
+html { overflow-x:hidden; }
+::-webkit-scrollbar:horizontal { height:0; }
+
+.overflow-auto,.overflow-x-auto,.overflow-x-scroll,.overflow-x-clip { overflow-x:hidden; }
+.flex.overflow-x-auto,.flex.overflow-x-scroll,
+.inline-flex.overflow-x-auto,.inline-flex.overflow-x-scroll { flex-wrap:wrap; }
+.overflow-x-auto > :not(table),.overflow-x-scroll > :not(table) { max-width:100%; }
+.overflow-x-auto,.overflow-x-scroll { overflow-wrap:break-word; }
+.overflow-x-auto > table,.overflow-x-scroll > table { width:100%; table-layout:fixed; }
+.overflow-x-auto > table td,.overflow-x-scroll > table td,
+.overflow-x-auto > table th,.overflow-x-scroll > table th {
+  padding-left:.4rem;
+  padding-right:.4rem;
+  word-break:break-word;
+}
+.overflow-x-auto > table :link,.overflow-x-scroll > table :link { min-width:0; }
+main img,main video,main canvas,main iframe { max-width:100%; }
+main pre { white-space:pre-wrap; overflow-wrap:break-word; }
+
+[data-ytv-flex-gap] [style*="--ytv-gap-margin-top:"] { margin-top:var(--ytv-gap-margin-top) !important; }
+[data-ytv-flex-gap] [style*="--ytv-gap-margin-right:"] { margin-right:var(--ytv-gap-margin-right) !important; }
+[data-ytv-flex-gap] [style*="--ytv-gap-margin-bottom:"] { margin-bottom:var(--ytv-gap-margin-bottom) !important; }
+[data-ytv-flex-gap] [style*="--ytv-gap-margin-left:"] { margin-left:var(--ytv-gap-margin-left) !important; }
+[data-ytv-flex-gap] [style*="--ytv-gap-width:"] { width:var(--ytv-gap-width) !important; }
+[data-ytv-flex-gap] [style*="--ytv-gap-height:"] { height:var(--ytv-gap-height) !important; }
+
+@supports not (container-type:inline-size) {
+  [class~="@container"] > [class~="@max-[210px]:flex-col"] { flex-wrap:wrap; }
+}
+
+/* Wait for Alpine to evaluate the initial state. */
+.fixed.inset-0.flex[x-show]:not([data-ytv-dialog]),
+.absolute[x-show]:not([data-ytv-popover]) { display:none; }
+
+html[data-ytv-modal-open] { overflow-y:hidden; }
+.ytv-modal {
+  position:fixed;
+  top:0;
+  right:0;
+  bottom:0;
+  left:0;
+  width:100%;
+  height:100%;
+  max-width:none;
+  max-height:none;
+  margin:0;
+  padding:0;
+  overflow:hidden;
+  border:0;
+  background:transparent;
+  color:inherit;
+}
+.ytv-modal::backdrop { background:transparent; }
+.ytv-modal > [data-ytv-dialog],.ytv-modal > .ytv-action-dialog {
+  position:absolute;
+  top:0;
+  right:0;
+  bottom:0;
+  left:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+  background:rgba(0,0,0,.65);
+}
+.ytv-modal > [data-ytv-dialog] > div,.ytv-modal > .ytv-action-dialog > div {
+  min-width:0;
+  max-width:100%;
+  max-height:100%;
+  overflow-x:hidden;
+  overflow-y:auto;
+}

@@ -4,15 +4,18 @@ html { --ytv-toolbar-height:64px; font-family:var(--ytv-font); font-size:18px; b
 body { margin:0; padding-top:var(--ytv-toolbar-height); }
 *,*::before,*::after { box-sizing:border-box; }
 [x-cloak],[hidden] { display:none !important; }
-/* Wait for Alpine to evaluate the initial state of popovers and dialogs. */
-.fixed.inset-0[x-show]:not([data-ytv-dialog]),
-.absolute[x-show]:not([data-ytv-popover]) { display:none; }
 .absolute[data-ytv-picker]:not([hidden]) { display:block !important; opacity:1 !important; }
 button,input,select,textarea { font-family:inherit; }
 button,a[href],summary,select,[role="button"] { cursor:pointer; }
 html:not(.ytv-pointer) .ytv-focus { outline:3px solid #8dd5ff !important; outline-offset:-3px !important; }
 #ytv-toolbar { position:fixed; z-index:99990; left:0; right:0; top:0; height:var(--ytv-toolbar-height); display:flex; align-items:center; padding:8px 24px; background:#111722; border-bottom:1px solid #40536b; }
 #ytv-toolbar a,#ytv-toolbar button { display:inline-block; margin-left:8px; padding:9px 16px; background:#263448; color:#edf2fa; font:18px var(--ytv-font); border:0; border-radius:7px; text-decoration:none; }
+#ytv-toolbar .ytv-key-red { --ytv-key-color:#ff6a6a; }
+#ytv-toolbar .ytv-key-green { --ytv-key-color:#61d885; }
+#ytv-toolbar .ytv-key-yellow { --ytv-key-color:#ffd45f; }
+#ytv-toolbar .ytv-key-blue { --ytv-key-color:#6ba8ff; }
+#ytv-toolbar [class^="ytv-key-"] { border:2px solid var(--ytv-key-color); }
+html:not(.ytv-pointer) #ytv-toolbar [class^="ytv-key-"].ytv-focus { outline-offset:-5px !important; }
 #ytv-toolbar a:hover,#ytv-toolbar button:hover,.ytv-panel button:hover { background:#405a7b; }
 #ytv-toolbar strong { color:#b8ddff; margin-right:auto; font-size:22px; }
 #ytv-toolbar .ytv-mobile-menu { display:none; }
@@ -55,13 +58,6 @@ body > div > div > main > .container { padding-top:24px; padding-bottom:32px; }
 .absolute.group-hover\:opacity-100:not(button) { display:none; }
 button.group-hover\:opacity-100 { opacity:1; }
 
-/* Chromium 68 does not apply gap to these Home flex rows. */
-.ytv-home main section > .space-y-4 > .justify-between > .gap-3 > .shrink-0 { margin-right:12px; }
-.ytv-home main .flex-wrap.gap-3 > a[href*="hide_unreleased="] + .relative { margin-left:12px; }
-.ytv-home main .flex-wrap.gap-3 > a[href*="hide_unreleased="] > svg,
-.ytv-home main .flex-wrap.gap-3 > .relative > button[data-ytv-picker-trigger] > svg:first-child { margin-right:7px; }
-.ytv-home main .flex-wrap.gap-3 > .relative > button[data-ytv-picker-trigger] > svg:last-child { margin-left:7px; }
-
 .ytv-home [id^="home-media-"] > .relative > .absolute.hover-tap\:opacity-100 { display:none !important; }
 .ytv-home [id^="home-media-"] > .relative > .absolute.top-2 {
   top:8px;
@@ -100,17 +96,9 @@ button.group-hover\:opacity-100 { opacity:1; }
 [id^="progress-"] > .flex.space-x-4 > button { display:flex; align-items:center; justify-content:center; min-height:36px; }
 [id^="progress-"] > .flex.space-x-4 > div { min-width:0; overflow-wrap:break-word; }
 
-/* Give Calendar's flex rows the spacing that Chromium 68 omits. */
 .ytv-calendar main .justify-between.gap-4 { flex-wrap:wrap; }
-.ytv-calendar main .justify-between.gap-4 > * { margin-bottom:8px; }
 .ytv-calendar main .items-center.gap-2 { flex-wrap:wrap; }
-.ytv-calendar main .justify-between.gap-4 > .gap-2 > * { margin:0 8px 8px 0; }
-.ytv-calendar main .justify-between.gap-4 > .gap-2 > *:last-child { margin-right:0; }
-.ytv-calendar main button.gap-2 > svg,
-.ytv-calendar main .flex.items-center > .me-2 { margin-right:8px; }
-.ytv-calendar main a > .flex.gap-3 > img { margin-right:12px; }
 .ytv-calendar main a > .flex.gap-3 > .flex-1 > .flex { flex-wrap:wrap; margin-top:4px; }
-.ytv-calendar main a > .flex.gap-1 > svg { margin-right:4px; }
 
 #global-search { min-height:40px; }
 #global-search.rounded-l-md { border-radius:6px; }
@@ -146,28 +134,12 @@ main .relative > [data-ytv-picker] {
 .ytv-media-details main .container > [x-data] > .flex.md\:flex-row > * {
   min-width:0;
 }
-.ytv-media-details main .flex.flex-wrap.gap-2 > * { margin:0 8px 8px 0; }
-.ytv-media-details main .flex.flex-wrap.gap-4 > * { margin:0 12px 12px 0; }
-.ytv-media-details [data-ytv-section="streaming"] .flex.flex-wrap.gap-3 > * {
-  margin:0 12px 12px 0;
-}
-.ytv-media-details [data-ytv-section="streaming"] .gap-x-3 > img { flex-shrink:0; margin-right:10px; }
-.ytv-search-results main .flex.flex-wrap.gap-x-4 > span { margin-right:12px; }
-.ytv-search-results main .flex.gap-x-2 > a { margin-right:8px; }
+.ytv-media-details [data-ytv-section="streaming"] .gap-x-3 > img { flex-shrink:0; }
 .ytv-search-results main .flex.flex-wrap.gap-x-4 > .flex.gap-x-2 { flex-wrap:wrap; }
-.ytv-search-results main .flex.gap-x-2 > a,
-.ytv-search-results main .flex.gap-x-2 > .rounded-md { margin-bottom:6px; }
 .ytv-search-results main .flex.gap-x-2 > .rounded-md > a + a { border-left:1px solid #52627a; }
 /* The same filter form is used by TV Seasons and the other media libraries. */
-main #filter-form + .flex > .flex.flex-wrap.gap-2 > * { margin:0 8px 8px 0; }
 main #filter-form + .flex > .flex.flex-wrap.gap-2 > .rounded-md > a + a {
   border-left:1px solid #52627a;
-}
-@media(min-width:768px) {
-  main #filter-form + .flex > .grow { margin-right:16px; }
-}
-@media(max-width:767px) {
-  main #filter-form + .flex > .grow { margin-bottom:12px; }
 }
 main #filter-form + .flex [data-ytv-picker] button {
   background:none;
@@ -210,33 +182,7 @@ main #filter-form + .flex [data-ytv-picker] button[aria-pressed="true"] {
   object-fit:contain;
 }
 .ytv-media-details main .overflow-hidden.divide-y > div + div { margin-top:4px; }
-.ytv-media-details main button.flex.gap-x-3 > * + *,
-.ytv-media-details main .flex.justify-between.gap-x-4 > * + * { margin-left:12px; }
-.ytv-media-details main .fixed.inset-0[x-show] {
-  top:0;
-  right:0;
-  bottom:0;
-  left:0;
-}
-.ytv-media-details main .fixed.inset-0[x-show] > div {
-  max-width:calc(100vw - 32px);
-}
-.ytv-action-dialog {
-  position:fixed;
-  top:0;
-  right:0;
-  bottom:0;
-  left:0;
-  z-index:99995;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:rgba(0,0,0,.65);
-}
-.ytv-action-dialog > div {
-  width:32rem;
-  max-width:calc(100vw - 32px);
-}
+.ytv-action-dialog > div { width:32rem; }
 .ytv-action-dialog > .w-96 { width:24rem; }
 .ytv-media-details main button.htmx-request { opacity:.65; }
 @media(max-width:1023px) {
@@ -258,11 +204,6 @@ main #filter-form + .flex [data-ytv-picker] button[aria-pressed="true"] {
   }
   .ytv-media-details main .flex.md\:flex-row > img.md\:w-64 { max-width:35%; }
   .ytv-media-details main .flex.md\:flex-row > .flex-1 { min-width:0; }
-}
-@media(max-width:767px) {
-  .ytv-media-details main .container > [x-data] > .flex.md\:flex-row > * + * {
-    margin-top:24px;
-  }
 }
 @media(max-width:600px) {
   #ytv-toolbar { padding:8px; }

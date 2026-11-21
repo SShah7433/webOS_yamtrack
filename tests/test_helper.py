@@ -238,14 +238,20 @@ class Integration(unittest.TestCase):
         status, _, body = self.request('/details/tmdb/tv/123/show/season/2', self.tv)
         self.assertEqual(status, 200)
         compat = b'<script src="/__tv/compat.js"></script>'
+        stylesheet = b'<link rel="stylesheet" href="/__tv/compat.css">'
         self.assertLess(body.index(compat), body.index(b'<script defer src="/alpine.js">'))
         self.assertLess(body.index(b'<style>html{background:'), body.index(compat))
         self.assertIn(b'<script defer src="/__tv/navigation.js"></script>', body)
+        self.assertIn(stylesheet, body)
         self.assertNotIn(compat, self.request('/', self.phone)[2])
+        self.assertNotIn(stylesheet, self.request('/', self.phone)[2])
         status, headers, script = self.request('/__tv/compat.js', self.tv)
         self.assertEqual(status, 200)
         self.assertEqual(headers['Content-Type'], 'application/javascript')
         self.assertIn(b'queueMicrotask', script)
+        status, headers, css = self.request('/__tv/compat.css', self.tv)
+        self.assertEqual((status, headers['Content-Type']), (200, 'text/css'))
+        self.assertIn(b'.ytv-modal', css)
 
     def test_pairing_and_tv_pages_share_same_origin_font_faces(self):
         self.pair()
@@ -350,6 +356,18 @@ class Integration(unittest.TestCase):
 
 
 class Startup(unittest.TestCase):
+    def test_request_logs_omit_pairing_codes_and_calendar_tokens(self):
+        app = create_app('http://yamtrack.test', 'http://tv.test', state_path='',
+                         upstream_request=lambda *_args: (200, [], b'calendar'))
+        client = app.test_client()
+        with self.assertLogs(app.logger, level='INFO') as logs:
+            client.get('/__tv/pair?code=123456', base_url='http://tv.test')
+            client.get('/calendar/ical/private-token', base_url='http://tv.test')
+        self.assertEqual([entry.getMessage() for entry in logs.records], [
+            "'GET' pairing_form 200",
+            "'GET' forward 200",
+        ])
+
     def test_helper_origins_are_required_and_normalized(self):
         with patch.dict(os.environ, {}, clear=True):
             with self.assertRaisesRegex(ValueError, 'Set YAMTRACK_URL'):
@@ -381,6 +399,21 @@ class Startup(unittest.TestCase):
 
 
 class CSS(unittest.TestCase):
+    def test_gap_inset_and_transforms_have_legacy_declarations(self):
+        css = lower_css('''@layer utilities{
+          .gutter{gap:var(--spacing) 2rem;column-gap:1rem;}
+          .overlay{inset:0 2rem;}
+          .move{translate:0 -50%;}
+          .turn{rotate:180deg;}
+          .size{--tw-scale-x:95%;scale:var(--tw-scale-x) 100%;}
+        }''')
+        self.assertIn('grid-gap:var(--spacing) 2rem;gap:var(--spacing) 2rem;', css)
+        self.assertIn('grid-column-gap:1rem;column-gap:1rem;', css)
+        self.assertIn('.overlay{top:0;right:2rem;bottom:0;left:2rem;}', css)
+        self.assertIn('--ytv-translate:translate(0,-50%);transform:', css)
+        self.assertIn('--ytv-rotate:rotate(180deg);transform:', css)
+        self.assertIn('--tw-scale-x:0.95;--ytv-scale:scale(var(--tw-scale-x),1);transform:', css)
+
     def test_tailwind_features(self):
         css = lower_css('''@layer theme{:root{--color-white:oklch(100% 0 0);--spacing:.25rem;}}
         @layer utilities{.grid{display:grid;} .px-4{padding-inline:calc(var(--spacing) * 4);}

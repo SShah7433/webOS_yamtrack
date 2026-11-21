@@ -45,7 +45,7 @@
     if (activeDetailDialog) return activeDetailDialog.dialog;
     var dialogs = document.querySelectorAll('[role="dialog"],[aria-modal="true"],dialog[open],[data-ytv-dialog]');
     for (var i = dialogs.length - 1; i >= 0; i--) {
-      if (visible(dialogs[i]) && dialogs[i].querySelector(selector)) return dialogs[i];
+      if (visible(dialogs[i])) return dialogs[i];
     }
     return document;
   }
@@ -155,7 +155,9 @@
     heading.textContent = title;
     content.appendChild(heading);
     overlay.appendChild(content);
-    document.body.appendChild(overlay);
+    var dialogs = document.querySelectorAll('dialog.ytv-modal[open]');
+    var host = dialogs.length ? dialogs[dialogs.length - 1] : document.body;
+    host.appendChild(overlay);
     return content;
   }
   function button(parent, title, action) {
@@ -579,7 +581,7 @@
     else if (code === 33 || code === 34) scrollPage(code === 33 ? -1 : 1);
     else if (code === 13) { if (!pointerMode && !event.repeat) activate(); }
     else if (code === 461 || code === 27) back();
-    else if (!overlay) {
+    else if (scope() === document) {
       if (code === 403) toolbar.querySelector('a[href="/"]').click();
       if (code === 404) toolbar.querySelector('a[href="/lists"]').click();
       if (code === 405) search();
@@ -617,7 +619,11 @@
     }
   }, true);
   document.addEventListener('onwheel' in document ? 'wheel' : 'mousewheel', function (event) {
-    if (event.ctrlKey || Math.abs(event.deltaX || 0) > Math.abs(event.deltaY || 0)) return;
+    if (event.ctrlKey) return;
+    if (Math.abs(event.deltaX || 0) > Math.abs(event.deltaY || 0)) {
+      event.preventDefault();
+      return;
+    }
     var delta = event.deltaY;
     if (delta === undefined) delta = -event.wheelDelta;
     if (!delta) return;
@@ -625,6 +631,7 @@
     if (event.deltaMode === 2) delta *= window.innerHeight;
     var container = scope();
     if (container.contains(event.target) && scrollFrom(event.target, delta, container)) event.preventDefault();
+    else if (container !== document) event.preventDefault();
   }, { passive:false });
 
   function removeHoverTitles(root) {
@@ -682,9 +689,9 @@
   toolbar.id = 'ytv-toolbar';
   toolbar.setAttribute('aria-label', 'TV shortcuts');
   toolbar.innerHTML = '<strong>Yamtrack</strong><span id="ytv-page-status" role="status"></span>' +
-    '<a href="/">Home</a><a href="/lists">Lists</a>';
-  button(toolbar, 'Search', search);
-  button(toolbar, 'Help', help);
+    '<a href="/" class="ytv-key-red">Home</a><a href="/lists" class="ytv-key-green">Lists</a>';
+  button(toolbar, 'Search', search).className = 'ytv-key-yellow';
+  button(toolbar, 'Help', help).className = 'ytv-key-blue';
   var menuButton = button(toolbar, 'Menu', function () {
     var toggle = document.querySelector('body > div > div > .sticky button.lg\\:hidden');
     if (toggle) toggle.click();

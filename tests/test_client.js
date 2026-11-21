@@ -29,7 +29,7 @@ test('legacy Alpine gets flatMap and starts popovers closed', () => {
   init();
   for (const [selector, attribute] of [
     ['.absolute[x-show]', 'data-ytv-popover'],
-    ['.fixed.inset-0[x-show]', 'data-ytv-dialog']
+    ['.fixed.inset-0.flex[x-show]', 'data-ytv-dialog']
   ]) {
     const element = {
       style: {},
@@ -39,6 +39,68 @@ test('legacy Alpine gets flatMap and starts popovers closed', () => {
     intercept(element);
     assert.equal(element.style.display, 'none');
     assert.equal(element.marker, attribute);
+  }
+});
+
+test('the shared modal reopens when Alpine changes visibility without a mutation notification', () => {
+  const frames = [];
+  const listeners = {};
+  const rootAttributes = new Set();
+  const owner = {
+    classList: { contains() { return false; } },
+    getClientRects() { return [1]; },
+    insertBefore(node) { node.parentElement = this; }
+  };
+  const editor = {
+    parentElement: owner,
+    style: { display: 'none' },
+    getAttribute() { return null; },
+    _x_doShow() { this.style.display = ''; },
+    _x_doHide() { this.style.display = 'none'; }
+  };
+  let shell;
+  const document = {
+    body: { appendChild() {} },
+    documentElement: {
+      setAttribute(name) { rootAttributes.add(name); },
+      removeAttribute(name) { rootAttributes.delete(name); }
+    },
+    addEventListener(name, callback) { listeners[name] = callback; },
+    querySelectorAll() { return [editor]; },
+    createElement(tag) {
+      if (tag !== 'dialog') return { style: {}, appendChild() {}, remove() {}, offsetHeight: 3 };
+      shell = {
+        classList: { contains(name) { return name === 'ytv-modal'; } },
+        setAttribute() {},
+        addEventListener() {},
+        appendChild(node) { node.parentElement = this; },
+        showModal() { this.open = true; },
+        close() { this.open = false; },
+        remove() {}
+      };
+      return shell;
+    }
+  };
+  const window = {
+    Alpine: { mutateDom(callback) { callback(); } },
+    addEventListener() {},
+    requestAnimationFrame(callback) { frames.push(callback); }
+  };
+  vm.runInNewContext(script('compat.js'), {
+    document, window, MutationObserver: class { observe() {} }
+  });
+  listeners.DOMContentLoaded();
+  frames.shift()();
+  for (let cycle = 0; cycle < 2; cycle++) {
+    editor._x_doShow();
+    frames.shift()();
+    assert.equal(shell.open, true);
+    assert.equal(rootAttributes.has('data-ytv-modal-open'), true);
+    editor._x_doHide();
+    frames.shift()();
+    assert.equal(shell.open, false);
+    assert.equal(editor.parentElement, owner);
+    assert.equal(rootAttributes.has('data-ytv-modal-open'), false);
   }
 });
 
