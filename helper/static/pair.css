@@ -1,5 +1,5 @@
 * { box-sizing:border-box; }
-body { margin:0; background:#151923; color:#edf2fa; font:24px/1.5 Arial,sans-serif; }
+body { margin:0; background:#151923; color:#edf2fa; font:24px/1.5 var(--ytv-font); }
 main { max-width:1100px; margin:6vh auto; padding:36px; }
 h1 { font-size:44px; margin:12px 0 28px; }
 .eyebrow { color:#8dcfff; letter-spacing:4px; font-size:18px; }

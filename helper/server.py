@@ -15,6 +15,7 @@ from urllib.parse import urlencode, urlsplit
 from flask import Flask, Response, jsonify, redirect, request, send_from_directory
 from werkzeug.routing import PathConverter
 
+from .compatibility import FONT_LINKS
 from .proxy import cookie_header, cookie_values, proxy, request_upstream
 
 STATIC = Path(__file__).parent / "static"
@@ -60,7 +61,7 @@ def page(title, body, status=200):
     return Response(
         '<!doctype html><html lang="en"><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        '<title>' + html.escape(title) + '</title>' + '<link rel="stylesheet" href="/__tv/pair.css">'
+        '<title>' + html.escape(title) + '</title>' + FONT_LINKS + '<link rel="stylesheet" href="/__tv/pair.css">'
         '<main><p class="eyebrow">YAMTRACK</p><h1>' + html.escape(title) + '</h1>'
         + body + '</main></html>',
         status=status,
@@ -142,8 +143,9 @@ def create_app(upstream_url=None, public_url=None, state_path=None, *, upstream_
 
     @app.after_request
     def response_headers(response):
+        if request.endpoint != "font_asset" or response.status_code not in (200, 206, 304):
+            response.headers["Cache-Control"] = "no-store"
         response.headers.update({
-            "Cache-Control": "no-store",
             "X-Content-Type-Options": "nosniff",
             "Referrer-Policy": "same-origin",
             "X-Frame-Options": "DENY",
@@ -158,12 +160,17 @@ def create_app(upstream_url=None, public_url=None, state_path=None, *, upstream_
     app.register_error_handler(OSError, unavailable)
     app.register_error_handler(http.client.HTTPException, unavailable)
 
-    @app.get("/__tv/<any(pair.css,pair.js,qr.js,client.css,client.js,compat.js,navigation.js):filename>")
+    @app.get("/__tv/<any(pair.css,pair.js,qr.js,client.css,client.js,compat.js,navigation.js,fonts.css):filename>")
     def static_asset(filename):
         mime = "text/css" if filename.endswith(".css") else "application/javascript"
         response = send_from_directory(STATIC, filename, mimetype=mime, conditional=False, etag=False)
         response.content_type = mime
         return response
+
+    @app.get("/__tv/fonts/roboto-flex-3.2-<any('400','400-italic','500','600','700'):style>.woff")
+    def font_asset(style):
+        return send_from_directory(STATIC / "fonts", f"roboto-flex-3.2-{style}.woff",
+                                   mimetype="font/woff", max_age=31536000)
 
     @app.get("/__tv/")
     def pairing_screen():

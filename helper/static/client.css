@@ -1,5 +1,6 @@
 /* These rules deliberately use CSS supported by the CX's Chromium 68. */
-html { --ytv-toolbar-height:64px; --ytv-font:var(--default-font-family,Arial,Helvetica,sans-serif); font-size:18px; background:#212529; color:#edf2fa; overflow-y:auto; }
+:root { --font-sans:var(--ytv-font); --default-font-family:var(--font-sans); }
+html { --ytv-toolbar-height:64px; font-family:var(--ytv-font); font-size:18px; background:#212529; color:#edf2fa; overflow-y:auto; }
 body { margin:0; padding-top:var(--ytv-toolbar-height); }
 *,*::before,*::after { box-sizing:border-box; }
 [x-cloak],[hidden] { display:none !important; }

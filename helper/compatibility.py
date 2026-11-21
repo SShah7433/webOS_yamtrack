@@ -5,6 +5,11 @@ import re
 from .legacy_css import lower_css
 
 
+FONT_LINKS = ('<link rel="preload" href="/__tv/fonts/roboto-flex-3.2-400.woff" '
+              'as="font" type="font/woff" crossorigin>'
+              '<link rel="stylesheet" href="/__tv/fonts.css">')
+
+
 # Chromium 68 cannot parse optional chaining or nullish coalescing. Limit the
 # rewrites to the expressions in Yamtrack's Alpine bundle and tracker date handler.
 ALPINE_REWRITES = {
@@ -17,7 +22,7 @@ ALPINE_REWRITES = {
 
 
 def rewrite_html(body):
-    scripts = (b'<link rel="stylesheet" href="/__tv/client.css">'
+    scripts = (FONT_LINKS.encode() + b'<link rel="stylesheet" href="/__tv/client.css">'
                b'<script defer src="/__tv/client.js"></script>'
                b'<script defer src="/__tv/navigation.js"></script>')
     # HTMX returns HTML fragments too; inject only into full documents.
@@ -55,7 +60,11 @@ def rewrite_script(path, body):
             body = body.replace(b"Chart.register(ChartDataLabels);", (
                 b"if (!window.Chart || !window.ChartDataLabels || "
                 b"!document.getElementById('media_type_distribution')) return;\n"
-                b"Chart.register(ChartDataLabels);"
+                b"Chart.register(ChartDataLabels);\n"
+                b"Chart.defaults.font.family = getComputedStyle(document.documentElement).fontFamily;\n"
+                b"if (document.fonts) document.fonts.load('12px ' + Chart.defaults.font.family).then(function () {\n"
+                b"  Object.values(Chart.instances).forEach(function (chart) { chart.update('none'); });\n"
+                b"}, function () {});"
             ), 1)
             body += (b"\ndocument.addEventListener('ytv:before-page', function () {"
                      b"if (window.Chart) Object.values(Chart.instances).forEach(function (chart) { chart.destroy(); });"

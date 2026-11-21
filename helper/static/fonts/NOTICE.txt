@@ -1,0 +1,7 @@
+Yamtrack Sans is derived from Roboto Flex 3.200, distributed under the SIL Open Font License in OFL.txt.
+
+Source: https://github.com/FuzzyGrim/Yamtrack/blob/bfb98f87322453e509a3b8054d9edb83dbdb2ab4/src/static/fonts/roboto-flex.woff2
+Source SHA-256: 10e8c746c710eea51ea089278fe39fa954b4461384c6d1cb4e5b47e7868e48a5
+Font project: https://github.com/googlefonts/roboto-flex
+
+FontTools 4.68.0 converted the source to static WOFF faces at weights 400, 500, 600 and 700. The italic face uses weight 400 and slant -10. All other axes use their defaults. The static faces use the Yamtrack Sans family and carry the original glyphs and copyright notice.

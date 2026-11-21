@@ -5,6 +5,7 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 from pathlib import Path
+import re
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -245,6 +246,27 @@ class Integration(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(headers['Content-Type'], 'application/javascript')
         self.assertIn(b'queueMicrotask', script)
+
+    def test_pairing_and_tv_pages_share_same_origin_font_faces(self):
+        self.pair()
+        for path, cookies in (('/__tv/', {}), ('/', self.tv)):
+            with self.subTest(path=path):
+                _, _, page = self.request(path, cookies)
+                self.assertIn(b'<link rel="stylesheet" href="/__tv/fonts.css">', page)
+                self.assertIn(b'400.woff" as="font" type="font/woff" crossorigin>', page)
+        self.assertNotIn(b'/__tv/fonts.css', self.request('/', self.phone)[2])
+
+        status, headers, css = self.request('/__tv/fonts.css')
+        self.assertEqual((status, headers['Cache-Control']), (200, 'no-store'))
+        faces = re.findall(rb'url\("(/__tv/fonts/[^"\s]+)"\)', css)
+        self.assertEqual(len(faces), 5)
+        for url in faces:
+            with self.subTest(url=url):
+                status, headers, font = self.request(url.decode())
+                self.assertEqual((status, headers['Content-Type'], font[:4]), (200, 'font/woff', b'wOFF'))
+                self.assertIn('max-age=31536000', headers['Cache-Control'])
+        status, headers, _ = self.request(faces[0].decode(), extra_headers={'Host': 'wrong.test'})
+        self.assertEqual((status, headers['Cache-Control']), (400, 'no-store'))
 
     def test_home_progress_preserves_htmx_post_and_swap(self):
         self.pair()
