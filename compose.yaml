@@ -1,5 +1,6 @@
 services:
   yamtrack-tv:
+    image: ${YAMTRACK_TV_IMAGE:-yamtrack-tv:local}
     build: .
     restart: unless-stopped
     ports:

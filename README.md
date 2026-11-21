@@ -1,4 +1,4 @@
-# Yamtrack TV for LG webOS
+# Yamtrack for LG webOS
 
 Homebrew client for LG webOS, originally developed for the OLED65CXPUA running webOS 5.6.2.
 
@@ -11,7 +11,7 @@ Run this on your Docker Compose host. Copy this project directory there first, i
 If using the deployment bundle, extract it first:
 
 ```sh
-tar -xzf yamtrack-tv-0.1.16.tgz
+tar -xzf yamtrack-tv-0.1.17.tgz
 ```
 
 Create a `.env` file beside `compose.yaml`. Replace the example hostnames with the hostnames or IP addresses for your LAN:
@@ -37,6 +37,7 @@ The helper uses the following paths and defaults. [Compose configuration](compos
 | Pairing page displayed by the TV | `TV_PUBLIC_URL` followed by `/__tv/` |
 | Address to open on your phone | `TV_PUBLIC_URL` followed by `/__tv/pair` |
 | Persistent sessions | `./data/sessions.json` on the Compose host |
+| Waitress worker threads | `8` |
 
 From a phone on your home Wi-Fi, open `/__tv/pair` at `TV_PUBLIC_URL`. Seeing a code-entry form confirms the helper is reachable. If necessary, allow TCP port **8765** from your LAN in the host's firewall. The helper container also needs to reach `YAMTRACK_URL`.
 
@@ -46,7 +47,7 @@ If a container on your host cannot reach the host's LAN IP, join the helper to Y
 
 ## 2. Install the homebrew app on the TV
 
-The container installs Flask and Waitress in a virtual environment and reads existing pairings from `data/sessions.json`.
+The container installs Flask and Waitress into its Python environment and reads existing pairings from `data/sessions.json`.
 
 Version **0.1.15** keeps the current page visible while loading Calendar, libraries, Lists, and other TV views. It also fixes the positioning of cast portraits. Existing installations receive these updates after rebuilding the helper and reopening the app.
 
@@ -54,15 +55,15 @@ Version **0.1.2** adds a locally generated QR code with the pairing code prefill
 
 Version **0.1.1** fixes the epoch-zero archive timestamps in the original 0.1.0 package, which can cause `ipk verified failed` on webOS 5.x. Install 0.1.1 instead of retrying 0.1.0. The helper container does not need updating for this packaging fix.
 
-The built package is [dist/org.local.yamtrack.tv_0.1.16_all.ipk](dist/org.local.yamtrack.tv_0.1.16_all.ipk). Its app ID is **`org.local.yamtrack.tv`**, and its display name is **Yamtrack TV**. You do not need an LG developer account or an Apple developer account for this rooted-TV installation.
+The built package is [dist/org.local.yamtrack.tv_0.1.17_all.ipk](dist/org.local.yamtrack.tv_0.1.17_all.ipk). Its app ID is **`org.local.yamtrack.tv`**, and its display name is **Yamtrack**. You do not need an LG developer account or an Apple developer account for this rooted-TV installation.
 
 ### Using your existing Glasshouse installation
 
 1. Open your TV's Glasshouse dashboard from a computer browser using the TV's LAN address.
 2. Open **Apps**, then **Install app from a URL or file**. If this section is disabled, turn it on using its own switch and review Glasshouse's prompt.
-3. Choose **Upload .ipk** and select `dist/org.local.yamtrack.tv_0.1.16_all.ipk` from this project.
+3. Choose **Upload .ipk** and select `dist/org.local.yamtrack.tv_0.1.17_all.ipk` from this project.
 4. Review the installation preview and install it.
-5. Find **Yamtrack TV** in the installed apps list and choose **Launch**. It is also a normal installed webOS app that a launcher can open by app ID.
+5. Find **Yamtrack** in the installed apps list and choose **Launch**. It is also a normal installed webOS app that a launcher can open by app ID.
 
 The Upload option depends on your installed Glasshouse version. If it is absent, use webOS Dev Manager below. No Glasshouse launcher modifications are required.
 
@@ -72,7 +73,7 @@ The Upload option depends on your installed Glasshouse version. If it is absent,
 2. Ensure your rooted TV's SSH service is enabled in Homebrew Channel.
 3. Add or select your TV in Dev Manager using your existing rooted-TV SSH connection: the TV's LAN IP, typically port **22**, user **root**, and your configured password or SSH key. The Developer Mode `prisoner`/9922 connection is a different setup.
 4. Open its apps view, choose **Install**, and select the `.ipk` above.
-5. Launch **Yamtrack TV**.
+5. Launch **Yamtrack**.
 
 ### Alternative: webOS CLI
 
@@ -86,13 +87,13 @@ ares-setup-device
 In the interactive device setup, add a device named `lgtv` using the **TV's IP**, your rooted-TV SSH port (normally `22`), user `root`, and your existing SSH authentication. Then, from this project directory:
 
 ```sh
-ares-install -d lgtv dist/org.local.yamtrack.tv_0.1.16_all.ipk
+ares-install -d lgtv dist/org.local.yamtrack.tv_0.1.17_all.ipk
 ares-launch -d lgtv org.local.yamtrack.tv
 ```
 
 ## 3. Pair from your phone
 
-1. Launch **Yamtrack TV**, enter the exact URL from `TV_PUBLIC_URL`, and choose **Connect**. The app pre-fills the last address on later launches. An unpaired TV displays a six-digit code valid for ten minutes.
+1. Launch **Yamtrack**, enter the exact URL from `TV_PUBLIC_URL`, and choose **Connect**. The app pre-fills the last address on later launches. An unpaired TV displays a six-digit code valid for ten minutes.
 2. Scan the TV’s QR code using your phone camera. It opens the phone pairing form with the code already filled in.
 3. Choose **Continue to Yamtrack login**. Alternatively, open `/__tv/pair` at `TV_PUBLIC_URL` and enter the displayed code on your phone.
 4. Sign into Yamtrack on the phone using your normal app login. If Yamtrack offers **Remember me**, select it for a longer session.
@@ -122,6 +123,19 @@ Use **Search** in the top toolbar or press **Yellow** to open the TV keyboard. C
 
 These color-key shortcuts apply while the Yamtrack app is running. Any Glasshouse/system-level remote remapping may take priority.
 
+## Build and publish releases
+
+GitHub Actions tests the helper, smoke-tests the Docker image, and builds the webOS IPK, SHA-256 checksum, and deployment bundle for every branch push and pull request. Find those files in the `yamtrack-webos-<version>` artifact for the run.
+
+Set `version` in `app/appinfo.json`, commit it, and push a matching `v<version>` tag after the project is connected to GitHub. For version `0.1.17`, the tag is `v0.1.17`. That build publishes the same files to GitHub Releases and a multi-platform helper image as `ghcr.io/<owner>/<repository>:0.1.17`. The workflow smoke-tests Linux `amd64`, `arm64`, and `arm/v7` before publishing. On a Raspberry Pi 5, Docker selects `arm64` for 64-bit Raspberry Pi OS or `arm/v7` for 32-bit. Use lower-case names for the registry owner and repository.
+
+For a prebuilt helper, set `YAMTRACK_TV_IMAGE=ghcr.io/<owner>/<repository>:0.1.17` in the `.env` file beside `compose.yaml`. If the registry package is private, sign in to GHCR on the Docker host first. Then run:
+
+```sh
+docker compose -p yamtrack-tv pull yamtrack-tv
+docker compose -p yamtrack-tv up -d --no-build
+```
+
 ## Updating, removing, and troubleshooting
 
 To update the helper after changing its source:
@@ -150,7 +164,9 @@ If the app is blank or cannot connect, open `/__tv/` at `TV_PUBLIC_URL` in the T
 
 If paired pages look wrong, inspect the app with `ares-inspect -d lgtv --app org.local.yamtrack.tv` and compare your deployed Yamtrack version. webOS 5.x uses Chromium 68; the helper lowers Tailwind layers, common nesting, colors, spacing, and media queries, but is not a complete modern-browser replacement. Yamtrack's own JavaScript and any future frontend changes may need additional compatibility work.
 
+Yamtrack's upstream stylesheet uses a platform font stack. The TV helper serves static WOFF faces derived from upstream's bundled Roboto Flex so the app, pairing screens, and statistics charts load the same font from the LAN. The launcher bootstrap screen, monospace text, and glyphs outside the bundled faces use device fonts. [LG web font guidance](https://webostv.developer.lge.com/develop/getting-started/app-resources)
 
+Waitress logs `Task queue depth` when incoming requests outnumber free workers. A single page can send several parallel asset requests, and each proxied request holds a worker while waiting on Yamtrack. The helper starts with eight workers. If warnings persist, check response times on the upstream Yamtrack server and set `TV_THREADS` in Compose’s environment if the host has room for more concurrent requests. Recreate the helper to apply the setting. [Waitress worker configuration](https://docs.pylonsproject.org/projects/waitress/en/stable/arguments.html#threads)
 
 To remove the app through the CLI:
 
@@ -179,3 +195,5 @@ References: [webOS Homebrew development](https://www.webosbrew.org/develop/), [w
 ## Third-party assets
 
 The official Yamtrack icon comes from `FuzzyGrim/Yamtrack`, `src/static/favicon/android-chrome-512x512.png`. The original, source revision notice, and AGPL license are included under `app/assets/`; the launcher sizes are resized copies. The offline QR encoder is adapted from Glasshouse’s MIT-licensed `server/assets/qr.js`, with its license and attribution retained in `helper/static/qr.js`. The QR code is drawn in the TV browser and is hidden when the pairing code expires. Long custom helper URLs that exceed the encoder’s capacity retain the manual address/code fallback.
+
+The derived font faces are packaged with their [source notice](helper/static/fonts/NOTICE.txt) and [SIL Open Font License](helper/static/fonts/OFL.txt).
