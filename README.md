@@ -127,13 +127,13 @@ These color-key shortcuts apply while the Yamtrack app is running. Any Glasshous
 
 GitHub Actions tests the helper, smoke-tests the Docker image, and builds the webOS IPK, SHA-256 checksum, and deployment bundle for every branch push and pull request. Find those files in the `yamtrack-webos-<version>` artifact for the run.
 
-Set `version` in `app/appinfo.json`, commit it, and push a matching `v<version>` tag after the project is connected to GitHub. For version `0.1.17`, the tag is `v0.1.17`. That build publishes the same files to GitHub Releases and a multi-platform helper image as `ghcr.io/<owner>/<repository>:0.1.17`. The workflow smoke-tests Linux `amd64`, `arm64`, and `arm/v7` before publishing. On a Raspberry Pi 5, Docker selects `arm64` for 64-bit Raspberry Pi OS or `arm/v7` for 32-bit. Use lower-case names for the registry owner and repository.
+Set `version` in `app/appinfo.json`, commit it, and push a matching `v<version>` tag. For version `0.1.17`, the tag is `v0.1.17`. The workflow attaches the webOS files and three smoke-tested Docker image archives with checksums to the same GitHub Release.
 
-For a prebuilt helper, set `YAMTRACK_TV_IMAGE=ghcr.io/<owner>/<repository>:0.1.17` in the `.env` file beside `compose.yaml`. If the registry package is private, sign in to GHCR on the Docker host first. Then run:
+Download the helper archive for your Docker host from that release. On a Raspberry Pi 5, use `linux-arm64` for 64-bit Raspberry Pi OS or `linux-armv7` for 32-bit. Use `linux-amd64` on an Intel or AMD PC. On the Docker host, run the commands below with the filename for your platform. [Docker image loading](https://docs.docker.com/reference/cli/docker/image/load/)
 
 ```sh
-docker compose -p yamtrack-tv pull yamtrack-tv
-docker compose -p yamtrack-tv up -d --no-build
+docker image load -i yamtrack-helper-0.1.17-linux-arm64.tar.gz
+YAMTRACK_TV_IMAGE=yamtrack-helper:0.1.17 docker compose -p yamtrack-tv up -d --no-build --pull never
 ```
 
 ## Updating, removing, and troubleshooting
