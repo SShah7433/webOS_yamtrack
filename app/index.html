@@ -5,25 +5,57 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Yamtrack</title>
   <style>
-    body { background:#151923; color:#edf2fa; font:30px Arial,Helvetica,sans-serif; padding:90px; }
-    p { max-width:1000px; line-height:1.6; }
-    label, input, button { display:block; }
-    input, button { font:inherit; padding:16px; margin-top:16px; border:2px solid #87caff; border-radius:6px; }
-    input { width:620px; max-width:95%; background:#111722; color:#edf2fa; }
+    body { background:#151923; color:#edf2fa; font:28px Arial,Helvetica,sans-serif; padding:4vh 7vw; }
+    h1 { margin:0 0 24px; }
+    p { max-width:1000px; line-height:1.4; margin:10px 0; }
+    label, input { display:block; }
+    input, button { box-sizing:border-box; font:inherit; padding:10px 16px; border:2px solid #87caff; border-radius:6px; }
+    input { width:640px; max-width:100%; background:#111722; color:#edf2fa; }
     button { background:#263448; color:#edf2fa; cursor:pointer; }
+    #address-keypad { width:640px; max-width:100%; margin-top:14px; display:grid; grid-template-columns:repeat(3, 1fr) 2fr; grid-gap:8px; }
     input:focus, button:focus { outline:4px solid #87caff; outline-offset:4px; }
     #server-error { color:#ffcccc; }
+    #remote-hint { display:flex; flex-wrap:wrap; font-size:22px; margin-top:14px; }
+    #remote-hint span { margin-right:22px; }
+    .remote-red { color:#ff9696; }
+    .remote-green { color:#a0e5a8; }
+    .remote-yellow { color:#ffe181; }
+    .remote-blue { color:#9ccfff; }
   </style>
 </head>
 <body>
   <h1>Yamtrack</h1>
   <form id="connect" novalidate>
     <label for="helper-url">TV helper URL</label>
-    <p id="server-hint">Enter the helper’s HTTP or HTTPS address, including its port if it uses one.</p>
-    <input id="helper-url" type="url" required autocapitalize="off" autocomplete="off" spellcheck="false"
-           aria-describedby="server-hint server-error">
+    <p id="server-hint">Enter an IPv4 address with the keypad. A bare IP address uses HTTP on port 8765.</p>
+    <input id="helper-url" type="url" placeholder="192.168.1.20" readonly required
+           autocapitalize="off" autocomplete="off" spellcheck="false"
+           aria-describedby="server-hint remote-hint server-error">
     <p id="server-error" role="alert" hidden></p>
-    <button id="open" type="submit">Connect</button>
+    <div id="address-keypad" role="group" aria-label="Address keypad">
+      <button type="button" data-key="1">1</button>
+      <button type="button" data-key="2">2</button>
+      <button type="button" data-key="3">3</button>
+      <button type="button" data-key="delete">Delete</button>
+      <button type="button" data-key="4">4</button>
+      <button type="button" data-key="5">5</button>
+      <button type="button" data-key="6">6</button>
+      <button type="button" data-key="clear">Clear</button>
+      <button type="button" data-key="7">7</button>
+      <button type="button" data-key="8">8</button>
+      <button type="button" data-key="9">9</button>
+      <button id="keyboard" type="button">Use keyboard</button>
+      <button type="button" data-key="." aria-label="Dot">.</button>
+      <button type="button" data-key="0">0</button>
+      <button type="button" data-key=":" aria-label="Colon">:</button>
+      <button id="open" type="submit">Connect</button>
+    </div>
+    <p id="remote-hint">
+      <span><strong class="remote-red">Red</strong> HTTP</span>
+      <span><strong class="remote-green">Green</strong> HTTPS</span>
+      <span><strong class="remote-yellow">Yellow</strong> .</span>
+      <span><strong class="remote-blue">Blue</strong> :</span>
+    </p>
   </form>
   <script src="launch.js"></script>
 </body>
