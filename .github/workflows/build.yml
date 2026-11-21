@@ -96,13 +96,19 @@ jobs:
             --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
             --label "org.opencontainers.image.version=$VERSION" \
             --label "org.opencontainers.image.revision=$GITHUB_SHA" .
-          docker run --platform "$PLATFORM" --detach --rm --name yamtrack-helper-ci \
+          trap 'docker rm --force yamtrack-helper-ci >/dev/null 2>&1 || true' EXIT
+          docker run --platform "$PLATFORM" --detach --name yamtrack-helper-ci \
             --publish 127.0.0.1:8765:8765 \
             --env YAMTRACK_URL=http://yamtrack.test:8000 \
             --env TV_PUBLIC_URL=http://127.0.0.1:8765 "$image"
-          trap 'docker rm --force yamtrack-helper-ci >/dev/null 2>&1 || true' EXIT
-          curl --fail --silent --show-error --retry 10 --retry-connrefused \
-            --retry-delay 1 --max-time 5 http://127.0.0.1:8765/__tv/ >/dev/null
+          curl --fail --silent --show-error --output /dev/null \
+            --retry 30 --retry-all-errors --retry-delay 1 --retry-max-time 30 --max-time 3 \
+            http://127.0.0.1:8765/__tv/ || {
+              result=$?
+              docker inspect --format '{{json .State}}' yamtrack-helper-ci || true
+              docker logs yamtrack-helper-ci || true
+              exit "$result"
+            }
       - name: Export the tested helper image
         if: github.ref_type == 'tag'
         shell: bash
