@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yamtrack TV</title>
+  <style>
+    body { background:#151923; color:#edf2fa; font:30px Arial,Helvetica,sans-serif; padding:90px; }
+    p { max-width:1000px; line-height:1.6; }
+    label, input, button { display:block; }
+    input, button { font:inherit; padding:16px; margin-top:16px; border:2px solid #87caff; border-radius:6px; }
+    input { width:620px; max-width:95%; background:#111722; color:#edf2fa; }
+    button { background:#263448; color:#edf2fa; cursor:pointer; }
+    input:focus, button:focus { outline:4px solid #87caff; outline-offset:4px; }
+    #server-error { color:#ffcccc; }
+  </style>
+</head>
+<body>
+  <h1>Yamtrack TV</h1>
+  <form id="connect" novalidate>
+    <label for="helper-url">TV helper URL</label>
+    <p id="server-hint">Enter the helper’s HTTP or HTTPS address, including its port if it uses one.</p>
+    <input id="helper-url" type="url" required autocapitalize="off" autocomplete="off" spellcheck="false"
+           aria-describedby="server-hint server-error">
+    <p id="server-error" role="alert" hidden></p>
+    <button id="open" type="submit">Connect</button>
+  </form>
+  <script src="launch.js"></script>
+</body>
+</html>

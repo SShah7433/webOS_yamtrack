@@ -1,0 +1,11 @@
+services:
+  yamtrack-tv:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+    environment:
+      YAMTRACK_URL: ${YAMTRACK_URL:?Set YAMTRACK_URL to your Yamtrack origin}
+      TV_PUBLIC_URL: ${TV_PUBLIC_URL:?Set TV_PUBLIC_URL to the TV helper origin}
+    volumes:
+      - ./data:/data

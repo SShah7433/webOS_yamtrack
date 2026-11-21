@@ -1,0 +1,6 @@
+Official Yamtrack icon
+Source: https://github.com/FuzzyGrim/Yamtrack
+Commit: f97b0639e24c08a5b1de3b9234b8b81cf6abea93
+Original: src/static/favicon/android-chrome-512x512.png
+Included unchanged as yamtrack-icon-512.png; icon.png and largeIcon.png are resized copies.
+License: GNU AGPL version 3; see YAMTRACK-LICENSE.txt.

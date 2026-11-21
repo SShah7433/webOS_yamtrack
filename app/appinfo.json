@@ -1,0 +1,15 @@
+{
+  "id": "org.local.yamtrack.tv",
+  "version": "0.1.16",
+  "vendor": "Local",
+  "type": "web",
+  "main": "index.html",
+  "title": "Yamtrack TV",
+  "appDescription": "Yamtrack on your TV with phone sign-in and remote navigation",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "iconColor": "#151923",
+  "bgColor": "#151923",
+  "resolution": "1920x1080",
+  "disableBackHistoryAPI": true
+}
