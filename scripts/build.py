@@ -15,6 +15,11 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def source_files(directory):
+    return (path for path in sorted(directory.rglob("*"))
+            if path.is_file() and path.name != ".DS_Store" and "__pycache__" not in path.parts)
+
+
 def archive(files, timestamp=None):
     # webOS 5.x treats tar's epoch-zero timestamp warnings as verification
     # failures. TarInfo defaults to zero, so stamp files AND directories.
@@ -45,11 +50,11 @@ def build():
     info = json.loads((app / "appinfo.json").read_text())
     app_id, version = info["id"], info["version"]
     files = {"usr/palm/applications/%s/%s" % (app_id, p.relative_to(app)): p.read_bytes()
-             for p in sorted(app.rglob("*")) if p.is_file()}
+             for p in source_files(app)}
     package = {"id": app_id, "version": version, "app": app_id}
     files["usr/palm/packages/%s/packageinfo.json" % app_id] = json.dumps(package).encode()
     control = ("Package: %s\nVersion: %s\nSection: misc\nPriority: optional\nArchitecture: all\n"
-               "Installed-Size: %d\nMaintainer: Local\nDescription: Yamtrack TV LAN launcher\n"
+               "Installed-Size: %d\nMaintainer: Local\nDescription: Yamtrack LAN launcher for webOS\n"
                "webOS-Package-Format-Version: 2\nwebOS-Packager-Version: yamtrack-tv-offline-0.1\n"
                % (app_id, version, sum(map(len, files.values())))).encode()
     members = {"debian-binary": b"2.0\n", "control.tar.gz": archive({"control": control}, timestamp),
@@ -73,7 +78,7 @@ def bundle(package):
     destination = ROOT / "dist" / ("yamtrack-tv-%s.tgz" % version)
     paths = [ROOT / name for name in ("README.md", "compose.yaml", "Dockerfile", "requirements.txt", ".dockerignore", ".gitignore")]
     for directory in ("helper", "app", "scripts", "tests"):
-        paths.extend(p for p in (ROOT / directory).rglob("*") if p.is_file() and "__pycache__" not in p.parts)
+        paths.extend(source_files(ROOT / directory))
     paths.extend((package, package.with_suffix(".ipk.sha256")))
     with tarfile.open(destination, "w:gz", format=tarfile.USTAR_FORMAT) as output:
         for path in paths:

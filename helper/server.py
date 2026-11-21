@@ -22,7 +22,7 @@ DEVICE_COOKIE = "ytv_device"
 PAIR_COOKIE = "ytv_pair"
 TTL = 600
 MAX_BODY = 4 * 1024 * 1024
-SERVER_NAME = "YamtrackTV/0.1.16"
+SERVER_NAME = "Yamtrack"
 
 
 def digest(value):
@@ -61,7 +61,7 @@ def page(title, body, status=200):
         '<!doctype html><html lang="en"><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         '<title>' + html.escape(title) + '</title>' + '<link rel="stylesheet" href="/__tv/pair.css">'
-        '<main><p class="eyebrow">YAMTRACK TV</p><h1>' + html.escape(title) + '</h1>'
+        '<main><p class="eyebrow">YAMTRACK</p><h1>' + html.escape(title) + '</h1>'
         + body + '</main></html>',
         status=status,
         mimetype="text/html",

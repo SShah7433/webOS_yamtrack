@@ -657,7 +657,7 @@
   toolbar = document.createElement('nav');
   toolbar.id = 'ytv-toolbar';
   toolbar.setAttribute('aria-label', 'TV shortcuts');
-  toolbar.innerHTML = '<strong>Yamtrack TV</strong><span id="ytv-page-status" role="status"></span>' +
+  toolbar.innerHTML = '<strong>Yamtrack</strong><span id="ytv-page-status" role="status"></span>' +
     '<a href="/">Home</a><a href="/lists">Lists</a>';
   button(toolbar, 'Search', search);
   button(toolbar, 'Help', help);

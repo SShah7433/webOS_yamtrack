@@ -29,6 +29,7 @@ class Package(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             shutil.copytree(build.ROOT / "app", root / "app")
+            (root / "app/.DS_Store").write_bytes(b"Finder metadata")
             with patch.object(build, "ROOT", root), contextlib.redirect_stdout(io.StringIO()):
                 build.build()
             info = json.loads((root / "app/appinfo.json").read_text())
@@ -51,8 +52,10 @@ class Package(unittest.TestCase):
                     self.assertTrue(all(entry.mtime >= 946684800 for entry in archive.getmembers()))
                     if name == "data.tar.gz":
                         base = "./usr/palm/applications/" + info["id"] + "/"
+                        self.assertNotIn(base + ".DS_Store", archive.getnames())
                         manifest = json.load(archive.extractfile(base + "appinfo.json"))
                         self.assertEqual(manifest, info)
+                        self.assertEqual(manifest["title"], "Yamtrack")
                         launcher = archive.extractfile(base + manifest["main"]).read()
                         self.assertIn(b'id="helper-url"', launcher)
                         self.assertNotIn(b'href="http', launcher)
