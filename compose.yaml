@@ -7,5 +7,6 @@ services:
     environment:
       YAMTRACK_URL: ${YAMTRACK_URL:?Set YAMTRACK_URL to your Yamtrack origin}
       TV_PUBLIC_URL: ${TV_PUBLIC_URL:?Set TV_PUBLIC_URL to the TV helper origin}
+      TV_THREADS: ${TV_THREADS:-8}
     volumes:
       - ./data:/data

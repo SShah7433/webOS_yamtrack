@@ -9,10 +9,10 @@ import re
 import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from urllib.parse import urlencode
 
-from helper.server import MAX_BODY, create_app
+from helper.server import MAX_BODY, create_app, main
 from helper.legacy_css import lower_css
 
 
@@ -363,6 +363,22 @@ class Startup(unittest.TestCase):
         response = app.test_client().get('/__tv/', base_url='https://tv.test')
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'https://tv.test/__tv/pair', response.data)
+
+    def test_waitress_worker_count_defaults_to_eight_and_can_be_overridden(self):
+        serve = Mock()
+        origins = {'YAMTRACK_URL': 'http://yamtrack.test:8000', 'TV_PUBLIC_URL': 'http://tv.test:8765'}
+        with patch.dict('sys.modules', {'waitress': SimpleNamespace(serve=serve)}):
+            for env, expected in (({}, 8), ({'TV_THREADS': '12'}, 12)):
+                with self.subTest(env=env), patch.dict(os.environ, origins | env, clear=True):
+                    main()
+                    self.assertEqual(serve.call_args.kwargs['threads'], expected)
+            serve.reset_mock()
+            for value in ('0', '-1', 'four'):
+                with self.subTest(value=value), patch.dict(os.environ, {'TV_THREADS': value}, clear=True):
+                    with self.assertRaisesRegex(SystemExit, 'TV_THREADS must be a positive integer'):
+                        main()
+            serve.assert_not_called()
+
 
 class CSS(unittest.TestCase):
     def test_tailwind_features(self):

@@ -298,11 +298,19 @@ def main():
 
     bind = os.environ.get("TV_BIND", "0.0.0.0")
     port = int(os.environ.get("TV_PORT", "8765"))
+    # Proxy requests hold a worker while waiting for Yamtrack. Leave room for a
+    # browser's parallel asset requests and other work during page loads.
+    try:
+        threads = int(os.environ.get("TV_THREADS", "8"))
+        if threads < 1:
+            raise ValueError
+    except ValueError:
+        raise SystemExit("TV_THREADS must be a positive integer.") from None
     try:
         app = create_app()
     except ValueError as error:
         raise SystemExit(str(error)) from None
-    serve(app, host=bind, port=port, ident=SERVER_NAME, max_request_body_size=MAX_BODY,
+    serve(app, host=bind, port=port, threads=threads, ident=SERVER_NAME, max_request_body_size=MAX_BODY,
           log_socket_errors=False)
 
 
