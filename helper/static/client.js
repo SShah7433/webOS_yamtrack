@@ -440,6 +440,10 @@
       if (match) {
         panel.setAttribute('data-ytv-section', match[3]);
         panels.push({ element:panel, name:match[3] });
+        if (match[3] === 'cast') {
+          var viewAll = panel.querySelector('a[href^="https://www.themoviedb.org/"][href$="/cast"]');
+          if (viewAll) viewAll.remove();
+        }
       }
     });
     if (!buttons.length || !panels.length || buttons.some(function (button) {

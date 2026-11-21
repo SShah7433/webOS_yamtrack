@@ -324,13 +324,20 @@ test('media detail tabs switch panels and stay in sync across both tab rows', ()
       getBoundingClientRect() { return { top:900 }; }
     };
   }
-  const names = ['overview', 'related-1', 'related-2', 'streaming', 'episodes'];
+  const names = ['overview', 'related-1', 'related-2', 'streaming', 'episodes', 'cast'];
   const rows = [element(), element()].map(nav => names.map(name => {
     const button = element({ '@click': `tab = '${name}'`, ':class': 'alpineClass' });
     button.parentElement = nav;
     return button;
   }));
   const panels = names.slice(1).map(name => element({ 'x-show': `tab === 'overview' || tab === '${name}'` }));
+  const [cast] = panels.slice(-1);
+  const links = ['https://www.themoviedb.org/person/7', 'https://www.themoviedb.org/movie/42/cast'];
+  cast.querySelector = selector => {
+    assert.equal(selector, 'a[href^="https://www.themoviedb.org/"][href$="/cast"]');
+    const index = links.findIndex(href => href.endsWith('/cast'));
+    return index === -1 ? null : { remove() { links.splice(index, 1); } };
+  };
   const unrelated = element({ 'x-show': 'trackOpen' });
   const detail = {
     querySelectorAll(selector) { return selector === 'nav > button' ? rows.flat() : panels.concat(unrelated); }
@@ -354,16 +361,19 @@ test('media detail tabs switch panels and stay in sync across both tab rows', ()
     document, window, CSS: { supports() { return true; } },
     MutationObserver: class { observe() {} }
   });
-  assert.deepEqual(panels.map(panel => panel.hidden), [false, false, false, false]);
+  assert.deepEqual(links, ['https://www.themoviedb.org/person/7']);
+  assert.deepEqual(panels.map(panel => panel.hidden), [false, false, false, false, false]);
   rows[0][1].click();
-  assert.deepEqual(panels.map(panel => panel.hidden), [false, true, true, true]);
+  assert.deepEqual(panels.map(panel => panel.hidden), [false, true, true, true, true]);
   assert.equal(rows[1][1].getAttribute('aria-pressed'), 'true');
   assert.equal(window.scroll, 300);
   rows[1][3].click();
-  assert.deepEqual(panels.map(panel => panel.hidden), [true, true, false, true]);
+  assert.deepEqual(panels.map(panel => panel.hidden), [true, true, false, true, true]);
   rows[0][4].click();
-  assert.deepEqual(panels.map(panel => panel.hidden), [true, true, true, false]);
+  assert.deepEqual(panels.map(panel => panel.hidden), [true, true, true, false, true]);
+  rows[1][5].click();
+  assert.deepEqual(panels.map(panel => panel.hidden), [true, true, true, true, false]);
   rows[1][0].click();
-  assert.deepEqual(panels.map(panel => panel.hidden), [false, false, false, false]);
+  assert.deepEqual(panels.map(panel => panel.hidden), [false, false, false, false, false]);
   assert.equal(unrelated.getAttribute('x-show'), 'trackOpen');
 });
