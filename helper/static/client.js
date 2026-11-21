@@ -534,6 +534,8 @@
   document.addEventListener('htmx:beforeRequest', function (event) {
     if (detailTargets.has(event.detail.target)) document.getElementById('ytv-page-status').textContent = '';
   });
+  document.addEventListener('click', blockExternalLink, true);
+  document.addEventListener('auxclick', blockExternalLink, true);
   document.addEventListener('click', function (event) {
     if (!activeDetailDialog) return;
     var dialog = activeDetailDialog.dialog;
@@ -638,6 +640,28 @@
     });
   }
 
+  function isExternalWebLink(link) {
+    return (link.protocol === 'http:' || link.protocol === 'https:') && link.origin !== window.location.origin;
+  }
+
+  function disableExternalLinks(root) {
+    var links = Array.prototype.slice.call(root.querySelectorAll('a[href]'));
+    if (root.matches('a[href]')) links.unshift(root);
+    links.forEach(function (link) {
+      if (!isExternalWebLink(link)) return;
+      link.removeAttribute('href');
+      link.removeAttribute('tabindex');
+    });
+  }
+
+  // Catch hrefs added by Alpine or other scripts after the page was prepared.
+  function blockExternalLink(event) {
+    var link = event.target.closest('a[href]');
+    if (!link || !isExternalWebLink(link)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+
   // Chromium 68 needs a sized wrapper to reserve space before a poster loads.
   function sizePosters(root) {
     var poster = 'a > img[class~="aspect-2/3"]';
@@ -672,9 +696,11 @@
   configureLibraryFilters();
   configureSections();
   configureDetailActions();
+  disableExternalLinks(document.body);
   removeHoverTitles(document.body);
   document.body.addEventListener('htmx:load', function (event) {
     registerPickers(event.detail.elt);
+    disableExternalLinks(event.detail.elt);
     removeHoverTitles(event.detail.elt);
   });
   document.addEventListener('ytv:page', function (event) {
@@ -694,6 +720,7 @@
     configureLibraryFilters();
     configureSections(activeSection);
     configureDetailActions();
+    disableExternalLinks(document.body);
     removeHoverTitles(document.body);
     if (!pointerMode) mark(items()[0]);
   });

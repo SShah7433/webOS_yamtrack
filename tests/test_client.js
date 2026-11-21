@@ -377,3 +377,70 @@ test('media detail tabs switch panels and stay in sync across both tab rows', ()
   assert.deepEqual(panels.map(panel => panel.hidden), [false, false, false, false, false]);
   assert.equal(unrelated.getAttribute('x-show'), 'trackOpen');
 });
+
+test('the TV disables outbound web links on initial pages and after swaps', () => {
+  const origin = 'http://tv.test:8765';
+  const listeners = {};
+  const bodyListeners = {};
+  function anchor(href) {
+    const url = new URL(href, origin);
+    return {
+      href, protocol: url.protocol, origin: url.origin, tabindex: '0',
+      matches(selector) { return selector === 'a[href]' && Boolean(this.href); },
+      removeAttribute(name) { delete this[name]; },
+      querySelectorAll() { return []; }
+    };
+  }
+  const portrait = anchor('https://www.themoviedb.org/person/7');
+  const home = anchor(origin + '/');
+  const details = anchor('/details/tmdb/tv/42/show');
+  const section = anchor('#cast');
+  let links = [portrait, home, details, section];
+  const body = {
+    insertBefore() {}, matches() { return false; },
+    querySelectorAll(selector) { return links.filter(link => link.matches(selector)); },
+    addEventListener(name, handler) { (bodyListeners[name] ||= []).push(handler); }
+  };
+  const document = {
+    body, activeElement: body,
+    documentElement: { classList: { toggle() {} } },
+    querySelector() { return null; },
+    querySelectorAll() { return []; },
+    createElement() { return { setAttribute() {}, appendChild() {} }; },
+    addEventListener(name, handler, capture) { (listeners[name] ||= []).push({ handler, capture }); }
+  };
+  const window = { location: { origin, pathname: '/details/tmdb/tv/42/show' } };
+  vm.runInNewContext(script('client.js'), {
+    document, window, CSS: { supports() { return true; } },
+    MutationObserver: class { observe() {} }
+  });
+  assert.equal(portrait.href, undefined);
+  assert.equal(portrait.tabindex, undefined);
+  assert.equal(home.href, origin + '/');
+  assert.equal(details.href, '/details/tmdb/tv/42/show');
+  assert.equal(section.href, '#cast');
+
+  const fragmentLink = anchor('//www.themoviedb.org/person/8');
+  bodyListeners['htmx:load'].forEach(handler => handler({ detail: { elt: fragmentLink } }));
+  assert.equal(fragmentLink.href, undefined);
+
+  const swappedLink = anchor('https://www.themoviedb.org/person/9');
+  links = [swappedLink];
+  listeners['ytv:page'][0].handler({});
+  assert.equal(swappedLink.href, undefined);
+
+  const boundLink = anchor('https://www.themoviedb.org/person/10');
+  for (const type of ['click', 'auxclick']) {
+    for (const [link, blocked] of [[boundLink, true], [details, false]]) {
+      const event = {
+        target: { closest(selector) { return link.matches(selector) ? link : null; } },
+        preventDefault() { this.defaultPrevented = true; },
+        stopImmediatePropagation() { this.stopped = true; }
+      };
+      assert.equal(listeners[type][0].capture, true);
+      listeners[type][0].handler(event);
+      assert.equal(Boolean(event.defaultPrevented), blocked);
+      assert.equal(Boolean(event.stopped), blocked);
+    }
+  }
+});

@@ -115,7 +115,7 @@ test('the current page remains visible until a compatible page is ready', async 
   assert.equal(app.window.scroll, 240);
 });
 
-test('external links stay native and a page with other assets gets a full load', async () => {
+test('only in-app pages use the page loader, with a full load for different assets', async () => {
   const app = browser();
   assert(!app.click('https://example.com/'));
   assert(app.click());
