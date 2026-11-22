@@ -106,12 +106,21 @@ button.group-hover\:opacity-100 { opacity:1; }
 [id^="progress-"] > .flex.space-x-4 > div { min-width:0; overflow-wrap:break-word; }
 
 .ytv-calendar main .justify-between.gap-4 { flex-wrap:wrap; }
-.ytv-calendar main .items-center.gap-2 { flex-wrap:wrap; }
-.ytv-calendar main form[action="/reload_calendar"] > button {
+.ytv-calendar main .justify-between.gap-4 > .items-center.gap-2 {
   flex-wrap:nowrap;
   white-space:nowrap;
 }
-.ytv-calendar main form[action="/reload_calendar"] > button > svg { flex-shrink:0; }
+/* Chromium 68 lays out button contents as flow content even with display:flex. */
+.ytv-calendar main form[action="/reload_calendar"] > button {
+  display:inline-block;
+  white-space:nowrap;
+}
+.ytv-calendar main form[action="/reload_calendar"] > button > svg {
+  display:inline-block;
+  margin-right:4px;
+  vertical-align:middle;
+}
+.ytv-calendar main form[action="/reload_calendar"] > button > span { vertical-align:middle; }
 .ytv-calendar main a[href^="/calendar/download/"] { display:none; }
 .ytv-calendar main a > .flex.gap-3 > .flex-1 > .flex { flex-wrap:wrap; margin-top:4px; }
 
@@ -260,6 +269,10 @@ main #filter-form + .flex [data-ytv-picker] button[aria-pressed="true"] {
   .ytv-media-details main .flex.md\:flex-row > .flex-1 { min-width:0; }
 }
 @media(max-width:600px) {
+  .ytv-calendar main .justify-between.gap-4 > .items-center.gap-2 {
+    flex-wrap:wrap;
+    justify-content:center;
+  }
   #ytv-toolbar { padding:8px; }
   #ytv-toolbar a,#ytv-toolbar button { padding:8px; margin-left:4px; }
   .ytv-panel { padding:12px; }
