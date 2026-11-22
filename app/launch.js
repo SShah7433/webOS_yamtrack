@@ -8,12 +8,67 @@
   var keyboard = document.getElementById('keyboard');
   var keys = Array.prototype.slice.call(keypad.querySelectorAll('button'));
   var connect = document.getElementById('open');
+  var reconnect = document.getElementById('reconnect');
+  var changeAddress = document.getElementById('change-address');
   var storageKey = 'yamtrack-helper-origin';
   var keypadHint = hint.textContent;
   var colorKeys = { 403:'http', 404:'https', 405:'.', 406:':' };
 
   try { field.value = window.localStorage.getItem(storageKey) || ''; } catch (ignored) { /* Storage is optional. */ }
-  (field.value ? connect : keys[0]).focus();
+
+  function helperOrigin(address) {
+    address = address.trim();
+    var ipv4 = address.match(/^(\d{1,3}(?:\.\d{1,3}){3})(?::(\d{1,5}))?$/);
+    if (ipv4) {
+      var host = ipv4[1].split('.').map(Number).join('.');
+      address = 'http://' + host + ':' + (ipv4[2] || '8765');
+    }
+    var url;
+    try { url = new URL(address); } catch (ignored) { return null; }
+    if (!/^https?:$/.test(url.protocol) || url.username || url.password ||
+        url.pathname !== '/' || url.search || url.hash) return null;
+    return url.origin;
+  }
+
+  function openHelper(origin) {
+    window.location.replace(origin + '/__tv/');
+  }
+
+  function reconnectTo(origin) {
+    form.hidden = true;
+    reconnect.hidden = false;
+    changeAddress.focus();
+
+    // A public stylesheet tests the saved helper from the packaged file page
+    // without needing CORS support or executing code from that address.
+    var probe = document.createElement('link');
+    probe.rel = 'stylesheet';
+    probe.href = origin + '/__tv/fonts.css';
+    var timeout = setTimeout(unavailable, 5000);
+    function stop() {
+      clearTimeout(timeout);
+      probe.onload = probe.onerror = null;
+      probe.remove();
+    }
+    function showForm() {
+      stop();
+      reconnect.hidden = true;
+      form.hidden = false;
+      connect.focus();
+    }
+    function unavailable() {
+      showForm();
+      error.textContent = 'Could not reach the saved helper. Check the address or try connecting again.';
+      error.hidden = false;
+    }
+    probe.onload = function () {
+      stop();
+      openHelper(origin);
+    };
+    probe.onerror = unavailable;
+    changeAddress.addEventListener('click', showForm);
+    document.head.appendChild(probe);
+  }
 
   function editAddress(key) {
     if (key === 'clear') field.value = '';
@@ -39,29 +94,21 @@
 
   form.addEventListener('submit', function (event) {
     event.preventDefault();
-    var address = field.value.trim();
-    var ipv4 = address.match(/^(\d{1,3}(?:\.\d{1,3}){3})(?::(\d{1,5}))?$/);
-    if (ipv4) {
-      var host = ipv4[1].split('.').map(Number).join('.');
-      address = 'http://' + host + ':' + (ipv4[2] || '8765');
-    }
-    var url;
-    try { url = new URL(address); } catch (ignored) { /* Show the same message for invalid input. */ }
-    if (!url || !/^https?:$/.test(url.protocol) || url.username || url.password ||
-        url.pathname !== '/' || url.search || url.hash) {
+    var origin = helperOrigin(field.value);
+    if (!origin) {
       error.textContent = 'Enter an IPv4 address or an HTTP or HTTPS URL with just the host and optional port.';
       error.hidden = false;
       (field.readOnly ? keys[0] : field).focus();
       return;
     }
     error.hidden = true;
-    try { window.localStorage.setItem(storageKey, url.origin); } catch (ignored) { /* Connection still works. */ }
-    window.location.replace(url.origin + '/__tv/');
+    try { window.localStorage.setItem(storageKey, origin); } catch (ignored) { /* Connection still works. */ }
+    openHelper(origin);
   });
 
   document.addEventListener('keydown', function (event) {
     if (event.keyCode === 461) { window.close(); return; }
-    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    if (form.hidden || event.altKey || event.ctrlKey || event.metaKey) return;
     var colorKey = colorKeys[event.keyCode];
     if (colorKey) {
       event.preventDefault();
@@ -91,4 +138,8 @@
     event.preventDefault();
     keys[next].focus();
   });
+
+  var savedOrigin = helperOrigin(field.value);
+  if (savedOrigin) reconnectTo(savedOrigin);
+  else keys[0].focus();
 }());

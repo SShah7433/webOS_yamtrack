@@ -25,6 +25,10 @@
 </head>
 <body>
   <h1>Yamtrack</h1>
+  <div id="reconnect" hidden>
+    <p role="status">Connecting to Yamtrack…</p>
+    <button id="change-address" type="button">Change address</button>
+  </div>
   <form id="connect" novalidate>
     <label for="helper-url">TV helper URL</label>
     <p id="server-hint">Enter an IPv4 address with the keypad. A bare IP address uses HTTP on port 8765.</p>

@@ -6,10 +6,17 @@ const vm = require('node:vm');
 
 function launch(saved = '') {
   let opened;
+  let probe;
+  let timer;
   const launcher = join(__dirname, '..', 'app');
   const markup = readFileSync(join(launcher, 'index.html'), 'utf8');
   const document = {
     getElementById(id) { return controls[id]; },
+    createElement(tag) {
+      assert.equal(tag, 'link');
+      return { remove() { this.removed = true; } };
+    },
+    head: { appendChild(link) { probe = link; } },
     addEventListener(name, handler) { this[name] = handler; }
   };
   function control() {
@@ -25,20 +32,29 @@ function launch(saved = '') {
     'helper-url':Object.assign(control(), { readOnly:true }),
     'address-keypad':Object.assign(control(), { querySelectorAll() { return keys; } }),
     keyboard:control(),
+    reconnect:{ hidden:true },
+    'change-address':control(),
     open:control()
   };
-  const keys = Array.from(markup.matchAll(/<button[^>]*(?:data-key|id)="([^"]+)"[^>]*>/g), ([, key]) => {
+  const keypad = markup.slice(markup.indexOf('<div id="address-keypad"'));
+  const keys = Array.from(keypad.matchAll(/<button[^>]*(?:data-key|id)="([^"]+)"[^>]*>/g), ([, key]) => {
     return controls[key] || Object.assign(control(), { getAttribute() { return key; } });
   });
   const window = {
     location:{ replace(url) { opened = url; } },
     localStorage:{ getItem() { return saved; }, setItem(key, url) { saved = url; } }
   };
-  vm.runInNewContext(readFileSync(join(launcher, 'launch.js'), 'utf8'), { document, window, URL });
+  vm.runInNewContext(readFileSync(join(launcher, 'launch.js'), 'utf8'), {
+    document, window, URL,
+    setTimeout(callback) { timer = callback; return 1; },
+    clearTimeout() { timer = null; }
+  });
   return {
     controls, document,
     opened: () => opened,
     saved: () => saved,
+    probe: () => probe,
+    timeout() { timer(); },
     submit() { controls.connect.submit({ preventDefault() {} }); },
     press(key, keyCode) {
       const event = { key, keyCode, preventDefault() { this.defaultPrevented = true; } };
@@ -53,9 +69,43 @@ function launch(saved = '') {
   };
 }
 
-test('launcher connects using the saved or newly entered helper origin', () => {
+test('launcher opens a reachable saved helper without confirmation', () => {
+  const app = launch('http://tv.test:8765');
+  assert.equal(app.controls.connect.hidden, true);
+  assert.equal(app.controls.reconnect.hidden, false);
+  assert.equal(app.probe().href, 'http://tv.test:8765/__tv/fonts.css');
+  app.probe().onload();
+  assert.equal(app.opened(), 'http://tv.test:8765/__tv/');
+  assert.equal(app.probe().removed, true);
+  assert.equal(app.probe().onerror, null);
+});
+
+test('an unreachable saved helper restores the address form for retry or editing', () => {
+  for (const attempt of [app => app.timeout(), app => app.probe().onerror()]) {
+    const app = launch('http://tv.test:8765');
+    attempt(app);
+    assert.equal(app.controls.reconnect.hidden, true);
+    assert.equal(app.controls.connect.hidden, false);
+    assert.equal(app.controls['helper-url'].value, app.saved());
+    assert.equal(app.controls['server-error'].hidden, false);
+    assert.equal(app.document.activeElement, app.controls.open);
+    assert.equal(app.opened(), undefined);
+    assert.equal(app.probe().onload, null);
+  }
+});
+
+test('an invalid saved address stays on the address form', () => {
+  const app = launch('http://tv.test/__tv/');
+  assert.equal(app.controls.reconnect.hidden, true);
+  assert.equal(app.probe(), undefined);
+  assert.equal(app.opened(), undefined);
+  assert.equal(app.document.activeElement.getAttribute('data-key'), '1');
+});
+
+test('launcher validates and saves an edited helper origin', () => {
   const app = launch('http://tv.test:8765');
   const { controls, document } = app;
+  controls['change-address'].click();
   assert.equal(document.activeElement, controls.open);
   assert.equal(controls['helper-url'].value, app.saved());
 
@@ -135,6 +185,7 @@ test('the remote color buttons set the protocol and enter address punctuation', 
 
 test('remote punctuation inserts at the cursor when the URL field is editable', () => {
   const app = launch('https://tvtest:9090');
+  app.controls['change-address'].click();
   const field = app.controls['helper-url'];
   app.controls.keyboard.click();
   field.selectionStart = field.selectionEnd = 'https://tv'.length;

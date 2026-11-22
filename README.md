@@ -93,7 +93,7 @@ ares-launch -d lgtv org.local.yamtrack.tv
 
 ## 3. Pair from your phone
 
-1. Launch **Yamtrack**, enter the exact URL from `TV_PUBLIC_URL`, and choose **Connect**. The app pre-fills the last address on later launches. An unpaired TV displays a six-digit code valid for ten minutes.
+1. Launch **Yamtrack**, enter the exact URL from `TV_PUBLIC_URL`, and choose **Connect**. Later launches open the saved address automatically. An unpaired TV displays a six-digit code valid for ten minutes.
 2. Scan the TV’s QR code using your phone camera. It opens the phone pairing form with the code already filled in.
 3. Choose **Continue to Yamtrack login**. Alternatively, open `/__tv/pair` at `TV_PUBLIC_URL` and enter the displayed code on your phone.
 4. Sign into Yamtrack on the phone using your normal app login. If Yamtrack offers **Remember me**, select it for a longer session.
@@ -162,7 +162,7 @@ The dependency-free packager produces a standard unsigned webOS IPK. To package 
 ares-package --no-minify --outdir dist app
 ```
 
-If either server address changes, update the matching setting in `.env` and recreate the helper. If `TV_PUBLIC_URL` changes, enter the new value on the app’s connection screen. Pair again if the new origin has no saved pairing.
+If either server address changes, update the matching setting in `.env` and recreate the helper. When the saved helper is unreachable, the app opens the connection screen with the old address filled in. Enter the new `TV_PUBLIC_URL` and choose **Connect**. Pair again if the new origin has no saved pairing.
 
 If installation still reports `ipk verified failed` with **0.1.1**, check the TV’s date/time and time zone. An incorrect TV clock has also caused this error on CX sets. Correct the clock and retry; if it persists, retain the full install log for diagnosis. See the [timestamp-related fix in another webOS 5.x app](https://github.com/danielthejoker18/FreeMyTvWebOS/releases/tag/v1.2.4) and the [CX clock-related report](https://github.com/throwaway96/slopbro/issues/87).
 
