@@ -58,6 +58,33 @@ jobs:
           cd dist
           sha256sum --check -- *.ipk.sha256
 
+      - name: Build the Glasshouse catalog
+        working-directory: dist
+        run: |
+          app_id=$(jq -er '.id | strings' ../app/appinfo.json)
+          version=$(jq -er '.version | strings' ../app/appinfo.json)
+          ipk="${app_id}_${version}_all.ipk"
+          read -r checksum _ < "$ipk.sha256"
+          size=$(wc -c < "$ipk")
+          repository="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          jq --arg source "$repository" \
+            --arg ipkUrl "$repository/releases/download/v$version/$ipk" \
+            --arg sha256 "$checksum" --argjson size "$size" '
+            {packages: [{
+              id,
+              title,
+              shortDescription: "Yamtrack for LG webOS. Requires the Yamtrack TV helper on your LAN.",
+              manifest: {
+                id, title, version, type, appDescription,
+                sourceUrl: $source,
+                ipkUrl: $ipkUrl,
+                ipkHash: {sha256: $sha256},
+                ipkSize: $size,
+                rootRequired: false
+              }
+            }]}
+          ' ../app/appinfo.json > repo.json
+
       - name: Upload webOS artifacts
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
@@ -66,6 +93,7 @@ jobs:
             dist/*.ipk
             dist/*.ipk.sha256
             dist/*.tgz
+            dist/repo.json
           if-no-files-found: error
 
   test-image:
@@ -197,7 +225,7 @@ jobs:
         run: |
           app_id=$(jq -er '.id | strings' ../app/appinfo.json)
           ipk="${app_id}_${VERSION}_all.ipk"
-          assets=("$ipk" "$ipk.sha256" "yamtrack-tv-$VERSION.tgz")
+          assets=("$ipk" "$ipk.sha256" "yamtrack-tv-$VERSION.tgz" repo.json)
           for platform in linux-amd64 linux-arm64 linux-armv7; do
             archive="yamtrack-helper-$VERSION-$platform.tar.gz"
             assets+=("$archive" "$archive.sha256")
