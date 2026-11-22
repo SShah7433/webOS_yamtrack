@@ -98,6 +98,12 @@ button.group-hover\:opacity-100 { opacity:1; }
 
 .ytv-calendar main .justify-between.gap-4 { flex-wrap:wrap; }
 .ytv-calendar main .items-center.gap-2 { flex-wrap:wrap; }
+.ytv-calendar main form[action="/reload_calendar"] > button {
+  flex-wrap:nowrap;
+  white-space:nowrap;
+}
+.ytv-calendar main form[action="/reload_calendar"] > button > svg { flex-shrink:0; }
+.ytv-calendar main a[href^="/calendar/download/"] { display:none; }
 .ytv-calendar main a > .flex.gap-3 > .flex-1 > .flex { flex-wrap:wrap; margin-top:4px; }
 
 #global-search { min-height:40px; }
