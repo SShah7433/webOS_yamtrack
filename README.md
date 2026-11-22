@@ -55,13 +55,15 @@ Version **0.1.2** adds a locally generated QR code with the pairing code prefill
 
 Version **0.1.1** fixes the epoch-zero archive timestamps in the original 0.1.0 package, which can cause `ipk verified failed` on webOS 5.x. Install 0.1.1 instead of retrying 0.1.0. The helper container does not need updating for this packaging fix.
 
-The built package is [dist/org.local.yamtrack.tv_0.1.17_all.ipk](dist/org.local.yamtrack.tv_0.1.17_all.ipk). Its app ID is **`org.local.yamtrack.tv`**, and its display name is **Yamtrack**. You do not need an LG developer account or an Apple developer account for this rooted-TV installation.
+Running `python3 scripts/build.py` locally creates `dist/github.sshah7433.webos.yamtrack_0.1.17_all.ipk`. Its app ID is **`github.sshah7433.webos.yamtrack`**, and its display name is **Yamtrack**. You do not need an LG developer account or an Apple developer account for this rooted-TV installation.
+
+If you previously installed Yamtrack as `org.local.yamtrack.tv`, webOS installs the new IPK as a separate app. Enter your helper address and pair the new app, then remove the old copy through Glasshouse or Dev Manager.
 
 ### Using your existing Glasshouse installation
 
 1. Open your TV's Glasshouse dashboard from a computer browser using the TV's LAN address.
 2. Open **Apps**, then **Install app from a URL or file**. If this section is disabled, turn it on using its own switch and review Glasshouse's prompt.
-3. Choose **Upload .ipk** and select `dist/org.local.yamtrack.tv_0.1.17_all.ipk` from this project.
+3. Choose **Upload .ipk** and select `dist/github.sshah7433.webos.yamtrack_0.1.17_all.ipk` from this project.
 4. Review the installation preview and install it.
 5. Find **Yamtrack** in the installed apps list and choose **Launch**. It is also a normal installed webOS app that a launcher can open by app ID.
 
@@ -87,8 +89,8 @@ ares-setup-device
 In the interactive device setup, add a device named `lgtv` using the **TV's IP**, your rooted-TV SSH port (normally `22`), user `root`, and your existing SSH authentication. Then, from this project directory:
 
 ```sh
-ares-install -d lgtv dist/org.local.yamtrack.tv_0.1.17_all.ipk
-ares-launch -d lgtv org.local.yamtrack.tv
+ares-install -d lgtv dist/github.sshah7433.webos.yamtrack_0.1.17_all.ipk
+ares-launch -d lgtv github.sshah7433.webos.yamtrack
 ```
 
 ## 3. Pair from your phone
@@ -168,7 +170,7 @@ If installation still reports `ipk verified failed` with **0.1.1**, check the TV
 
 If the app is blank or cannot connect, open `/__tv/` at `TV_PUBLIC_URL` in the TV browser. Check the Compose logs and firewall. If pairing works but login fails, verify the normal Yamtrack login at `YAMTRACK_URL` and check that the helper container can reach it. A custom session-cookie name, a cookie explicitly marked Secure on an HTTP deployment, or proxy settings that force a public hostname need configuration adjustments.
 
-If paired pages look wrong, inspect the app with `ares-inspect -d lgtv --app org.local.yamtrack.tv` and compare your deployed Yamtrack version. webOS 5.x uses Chromium 68; the helper lowers Tailwind layers, common nesting, colors, spacing, and media queries, but is not a complete modern-browser replacement. Yamtrack's own JavaScript and any future frontend changes may need additional compatibility work.
+If paired pages look wrong, inspect the app with `ares-inspect -d lgtv --app github.sshah7433.webos.yamtrack` and compare your deployed Yamtrack version. webOS 5.x uses Chromium 68; the helper lowers Tailwind layers, common nesting, colors, spacing, and media queries, but is not a complete modern-browser replacement. Yamtrack's own JavaScript and any future frontend changes may need additional compatibility work.
 
 Yamtrack's upstream stylesheet uses a platform font stack. The TV helper serves static WOFF faces derived from upstream's bundled Roboto Flex so the app, pairing screens, and statistics charts load the same font from the LAN. The launcher bootstrap screen, monospace text, and glyphs outside the bundled faces use device fonts. [LG web font guidance](https://webostv.developer.lge.com/develop/getting-started/app-resources)
 
@@ -185,7 +187,7 @@ Waitress logs `Task queue depth` when incoming requests outnumber free workers. 
 To remove the app through the CLI:
 
 ```sh
-ares-install -d lgtv --remove org.local.yamtrack.tv
+ares-install -d lgtv --remove github.sshah7433.webos.yamtrack
 ```
 
 Or uninstall it through Glasshouse/Dev Manager. Stop the helper with `docker compose -p yamtrack-tv down`. To revoke all helper pairings, stop it, delete `data/sessions.json`, and start it again; also invalidate the corresponding Yamtrack session if you need to revoke it at the source.
