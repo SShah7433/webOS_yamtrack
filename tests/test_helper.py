@@ -1,4 +1,5 @@
 import http.client
+import gzip
 import io
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler
@@ -10,9 +11,10 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
-from helper.server import MAX_BODY, access_log, create_app, main
+from helper.proxy import request_upstream
+from helper.server import ISSUE_LIMIT, MAX_BODY, access_log, create_app, main
 from helper.legacy_css import lower_css
 
 
@@ -294,10 +296,92 @@ class Integration(unittest.TestCase):
         self.assertEqual(self.request('/__tv/pair', self.phone, 'POST', 'code='+code)[0], 400)
         self.assertTrue(json.loads(self.request('/__tv/status', self.tv)[2])['expired'])
 
+    def test_only_paired_tv_or_active_phone_login_reaches_upstream(self):
+        upstream = Mock(return_value=(200, [('Content-Type', 'text/css')], b'@layer utilities{}'))
+        self.upstream_request = upstream
+        self.phone['sessionid'] = 'valid-session'
+        for path in ('/', '/accounts/login/', '/static/app.css', '/admin/'):
+            self.assertIn(self.request(path, self.phone)[0], (303, 403))
+        upstream.assert_not_called()
+
+        code = json.loads(self.request('/__tv/start', self.tv, 'POST')[2])['code']
+        self.request('/__tv/pair', self.phone, 'POST', 'code=' + code)
+        for path in ('/admin/', '/search', '/accounts/signup/', '/static/%2e%2e/settings'):
+            self.assertEqual(self.request(path, self.phone)[0], 403)
+        self.assertEqual(self.request('/static/app.css', self.phone, 'POST')[0], 403)
+        upstream.assert_not_called()
+        self.assertEqual(self.request('/static/app.css', self.phone)[2], b'@layer utilities{}')
+        self.assertEqual(self.request('/accounts/login/', self.phone)[0], 200)
+        self.state.pending[code]['expires'] = 0
+        self.assertEqual(self.request('/accounts/login/', self.phone)[0], 403)
+
+    def test_pairing_issuance_is_limited_and_claim_cannot_be_replaced(self):
+        code = json.loads(self.request('/__tv/start', self.tv, 'POST')[2])['code']
+        for _ in range(ISSUE_LIMIT - 1):
+            self.assertEqual(self.request('/__tv/start', {}, 'POST')[0], 200)
+        self.assertEqual(self.request('/__tv/start', {}, 'POST')[0], 429)
+        self.assertEqual(json.loads(self.request('/__tv/start', self.tv, 'POST')[2])['code'], code)
+        self.assertEqual(self.request('/__tv/pair', self.phone, 'POST', 'code=' + code)[0], 303)
+        self.assertEqual(self.request('/__tv/pair', {}, 'POST', 'code=' + code)[0], 409)
+        self.assertEqual(self.request('/__tv/pair', self.phone, 'POST', 'code=' + code)[0], 303)
+
+    def test_public_upstream_homepage_cannot_confirm_login(self):
+        code = json.loads(self.request('/__tv/start', self.tv, 'POST')[2])['code']
+        self.request('/__tv/pair', self.phone, 'POST', 'code=' + code)
+        self.phone['sessionid'] = 'unverified'
+        self.upstream_request = Mock(return_value=(200, [], b'Public homepage'))
+        nonce = urlencode({'nonce': self.phone['ytv_pair']})
+        self.assertEqual(self.request('/__tv/approve', self.phone, 'POST', nonce)[0], 502)
+        self.assertFalse(self.state.devices)
+
+    def test_failed_approval_save_preserves_pending_pair_for_retry(self):
+        code = json.loads(self.request('/__tv/start', self.tv, 'POST')[2])['code']
+        self.request('/__tv/pair', self.phone, 'POST', 'code=' + code)
+        self.phone.update(sessionid='valid-session', unrelated='private')
+        nonce = urlencode({'nonce': self.phone['ytv_pair']})
+        with patch.object(self.state, 'save', side_effect=OSError('disk full')):
+            self.assertEqual(self.request('/__tv/approve', self.phone, 'POST', nonce)[0], 503)
+        self.assertFalse(self.state.devices)
+        self.assertIn(code, self.state.pending)
+        self.assertEqual(self.request('/__tv/approve', self.phone, 'POST', nonce)[0], 200)
+        self.assertEqual(list(self.state.devices.values()), [{'sessionid': 'valid-session'}])
+
+    def test_failed_session_update_keeps_old_record_and_disk_in_sync(self):
+        self.pair()
+        original = self.state.path.read_bytes()
+        self.upstream_request = Mock(return_value=(
+            200, [('Set-Cookie', 'sessionid=rotated; Path=/')], b'OK',
+        ))
+        with patch.object(self.state, 'save', side_effect=OSError('disk full')):
+            self.assertEqual(self.request('/', self.tv)[0], 503)
+        self.assertEqual(self.state.path.read_bytes(), original)
+        self.assertEqual(next(iter(self.state.devices.values()))['sessionid'], 'valid-session')
+
+    def test_proxy_filters_connection_headers_and_preserves_encoded_response(self):
+        self.pair()
+        encoded = gzip.compress(b'<html><head></head></html>')
+        self.upstream_request = Mock(return_value=(200, [
+            ('Content-Type', 'text/html'), ('Content-Encoding', 'gzip'),
+            ('Connection', 'X-Private'), ('X-Private', 'upstream'),
+            ('Set-Cookie', 'unrelated=private; Path=/'),
+        ], encoded))
+        status, headers, body = self.request('/', self.tv, extra_headers={
+            'Connection': 'Accept-Language', 'Accept-Language': 'en',
+            'X-Remote-User': 'example', 'HX-Request': 'true',
+        })
+        forwarded = self.upstream_request.call_args.args[2]
+        self.assertNotIn('Accept-Language', forwarded)
+        self.assertNotIn('X-Remote-User', forwarded)
+        self.assertEqual(forwarded['Hx-Request'].lower(), 'true')
+        self.assertEqual((status, headers['Content-Encoding'], body), (200, 'gzip', encoded))
+        self.assertNotIn('X-Private', headers)
+        self.assertNotIn('unrelated', self.tv)
+
     def test_approval_requires_login_and_nonce(self):
         code = json.loads(self.request('/__tv/start', self.tv, 'POST')[2])['code']
         self.request('/__tv/pair', self.phone, 'POST', 'code='+code)
-        self.assertEqual(self.request('/__tv/approve', self.phone, 'POST', 'nonce=wrong')[0], 303)
+        nonce = urlencode({'nonce': self.phone['ytv_pair']})
+        self.assertEqual(self.request('/__tv/approve', self.phone, 'POST', nonce)[0], 303)
         self.phone.update({'sessionid': 'valid-session', 'csrftoken': 'testcsrf'})
         self.assertEqual(self.request('/__tv/approve', self.phone, 'POST', 'nonce=wrong')[0], 403)
         self.assertFalse(json.loads(self.request('/__tv/status', self.tv)[2])['ready'])
@@ -311,7 +395,7 @@ class Integration(unittest.TestCase):
     def test_only_tv_css_is_lowered(self):
         self.pair()
         self.assertNotIn(b'@layer', self.request('/style.css', self.tv)[2])
-        self.assertIn(b'@layer', self.request('/style.css', self.phone)[2])
+        self.assertEqual(self.request('/style.css', self.phone)[0], 403)
 
     def test_only_tv_gets_legacy_alpine_and_tracker_scripts(self):
         self.pair()
@@ -324,7 +408,7 @@ class Integration(unittest.TestCase):
                 self.assertEqual(status, 200)
                 self.assertIn(rewrite, script)
                 self.assertNotIn(b'?.', script)
-                self.assertIn(b'?.', self.request(path, self.phone)[2])
+                self.assertEqual(self.request(path, self.phone)[0], 403)
 
     def test_statistics_uses_the_legacy_chart_bundle_on_tv(self):
         self.pair()
@@ -334,7 +418,7 @@ class Integration(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn(b'Chart.js v4.4.9', body)
         self.assertNotIn(b'static defaults=', body)
-        self.assertEqual(self.request(path, self.phone)[2], b'upstream-chart')
+        self.assertEqual(self.request(path, self.phone)[0], 403)
 
     def test_tv_date_picker_routes_query_changes_through_page_navigation(self):
         self.pair()
@@ -344,7 +428,7 @@ class Integration(unittest.TestCase):
         self.assertIn(b"CustomEvent('ytv:navigate'", script)
         self.assertIn(b'cancelable:true', script)
         self.assertNotIn(b'?.', script)
-        self.assertIn(b'window.location.href = url.toString();', self.request(path, self.phone)[2])
+        self.assertEqual(self.request(path, self.phone)[0], 403)
 
     def test_qr_screen_and_scanned_code_prefill(self):
         status, _, body = self.request('/__tv/', self.tv)
@@ -366,7 +450,28 @@ class Integration(unittest.TestCase):
 
 
 class Startup(unittest.TestCase):
-    def test_access_logs_include_full_urls(self):
+    def test_upstream_response_reader_bounds_declared_and_chunked_bodies(self):
+        upstream = urlsplit('http://yamtrack.test')
+        responses = (
+            (b'HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nbody', b'body'),
+            (b'HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n', None),
+            (b'HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nlarge\r\n0\r\n\r\n', None),
+        )
+        for payload, expected in responses:
+            with self.subTest(payload=payload), patch('helper.proxy.MAX_RESPONSE', 4), patch(
+                'helper.proxy.http.client.HTTPConnection'
+            ) as connect:
+                response = http.client.HTTPResponse(MemorySocket(payload))
+                response.begin()
+                connect.return_value.getresponse.return_value = response
+                if expected is None:
+                    with self.assertRaises(http.client.HTTPException):
+                        request_upstream(upstream, 'GET', '/', {})
+                else:
+                    self.assertEqual(request_upstream(upstream, 'GET', '/', {})[2], expected)
+                connect.return_value.close.assert_called_once()
+
+    def test_access_logs_redact_path_parameters_and_queries(self):
         origin = 'http://tv.test:8765'
         app = create_app('http://yamtrack.test', origin, state_path='',
                          upstream_request=lambda *_args: (200, [], b'calendar'))
@@ -379,9 +484,9 @@ class Startup(unittest.TestCase):
         self.assertEqual(len(logs.records), 3)
         prefix = r'^127\.0\.0\.1 - - \[\d{2}/[A-Za-z]{3}/\d{4}:\d{2}:\d{2}:\d{2} \+0000\] '
         for record, entry in zip(logs.records, [
-            f'"GET {origin}{paths[0]} HTTP/1.1" 200 {pairing.content_length}',
-            f'"GET {origin}{paths[1]} HTTP/1.1" 200 8',
-            f'"HEAD {origin}{paths[1]} HTTP/1.1" 200 -',
+            f'"GET /__tv/pair HTTP/1.1" 200 {pairing.content_length}',
+            '"GET /<yamtrack> HTTP/1.1" 403 20',
+            '"HEAD /<yamtrack> HTTP/1.1" 403 -',
         ]):
             self.assertRegex(record.getMessage(), prefix + re.escape(entry) + '$')
 

@@ -5,6 +5,9 @@ import re
 
 from .legacy_css import lower_css
 
+MAX_CSS_INPUT = 2 * 1024 * 1024
+MAX_CACHED_CSS = 1024 * 1024
+
 
 FONT_LINKS = ('<link rel="preload" href="/__tv/fonts/roboto-flex-3.2-400.woff" '
               'as="font" type="font/woff" crossorigin>'
@@ -82,15 +85,16 @@ def rewrite_response(path, body, content_type, state):
         return rewrite_html(body)
     if "javascript" in content_type:
         return rewrite_script(path, body)
-    if "text/css" in content_type and b"@layer" in body:
+    if "text/css" in content_type and len(body) <= MAX_CSS_INPUT and b"@layer" in body:
         key = hashlib.sha256(body).hexdigest()
         with state.lock:
             lowered = state.css_cache.get(key)
         if lowered is None:
             lowered = lower_css(body.decode("utf-8")).encode()
-            with state.lock:
-                if len(state.css_cache) > 8:
-                    state.css_cache.clear()
-                state.css_cache[key] = lowered
+            if len(lowered) <= MAX_CACHED_CSS:
+                with state.lock:
+                    if len(state.css_cache) >= 8:
+                        state.css_cache.pop(next(iter(state.css_cache)))
+                    state.css_cache[key] = lowered
         body = lowered
     return body
