@@ -73,11 +73,14 @@ function browser(path = '/') {
     document, window, DOMParser, URL, URLSearchParams, AbortController, CustomEvent, setTimeout, clearTimeout,
     FormData: class { constructor(form) { return form.data; } }
   });
-  function click(url = target) {
+  function click(url = target, homeShortcut = false) {
     let intercepted = false;
     listeners.click({
       button: 0,
-      target: { closest() { return { href: url, hasAttribute() { return false; }, closest() { return null; }, matches() { return false; } }; } },
+      target: { closest() { return {
+        href: url, hasAttribute() { return false; }, closest() { return null; },
+        matches(selector) { return homeShortcut && selector === '#ytv-toolbar .ytv-key-red'; }
+      }; } },
       preventDefault() { intercepted = true; }
     });
     return intercepted;
@@ -123,6 +126,29 @@ test('only in-app pages use the page loader, with a full load for different asse
   assert.equal(app.current().markup, 'Home');
   assert.equal(app.window.location.href, app.target);
   assert.equal(app.processed(), 0);
+});
+
+test('the TV Home shortcut goes home and refreshes the current page in place from Home', async () => {
+  const app = browser('/calendar');
+  const home = app.window.location.origin + '/';
+  assert(app.click(home, true));
+  await app.resolve('home');
+  assert.equal(app.window.location.href, home);
+  assert.equal(app.window.scroll, 0);
+
+  const historyState = app.window.history.state;
+  const previousFetch = app.lastFetch();
+  assert(app.click(home));
+  assert.equal(app.lastFetch(), previousFetch);
+
+  assert(app.click(home, true));
+  assert.notEqual(app.lastFetch(), previousFetch);
+  assert.equal(app.lastFetch().url, home);
+  assert.equal(app.lastFetch().options.method, 'GET');
+  await app.resolve('Updated Home');
+  assert.equal(app.current().markup, 'Updated Home');
+  assert.equal(app.window.history.state, historyState);
+  assert.equal(app.window.scroll, 240);
 });
 
 test('metadata sync refreshes the current detail page in place without another history entry', async () => {

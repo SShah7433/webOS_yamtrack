@@ -207,10 +207,12 @@
     });
   }
 
-  function navigate(url) {
+  function navigate(url, homeShortcut) {
     if (!eligible(url)) return false;
     if (redirecting || writes.size || (request && request.formSubmission)) return true;
-    if (url.pathname === displayed.pathname && url.search === displayed.search) {
+    if (homeShortcut && url.pathname === '/' && displayed.pathname === '/') {
+      load(displayed, { refresh:true });
+    } else if (url.pathname === displayed.pathname && url.search === displayed.search) {
       if (request) {
         request.abort();
         request = null;
@@ -273,7 +275,7 @@
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     var link = event.target.closest('a[href]');
     if (!link || (link.target && link.target.toLowerCase() !== '_self') || link.hasAttribute('download') || usesHtmx(link)) return;
-    if (navigate(new URL(link.href))) event.preventDefault();
+    if (navigate(new URL(link.href), link.matches('#ytv-toolbar .ytv-key-red'))) event.preventDefault();
   });
 
   document.addEventListener('submit', function (event) {
