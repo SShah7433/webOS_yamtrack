@@ -133,6 +133,8 @@ jobs:
           trap 'docker rm --force yamtrack-helper-ci >/dev/null 2>&1 || true' EXIT
           docker run --platform "$PLATFORM" --detach --name yamtrack-helper-ci \
             --publish 127.0.0.1:8765:8765 \
+            --read-only --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /tmp --tmpfs /data:uid=10001,gid=10001,mode=0700 \
             --env YAMTRACK_URL=http://yamtrack.test:8000 \
             --env TV_PUBLIC_URL=http://127.0.0.1:8765 "$image"
           probe_error=$(curl --fail --silent --output /dev/null --write-out '%{errormsg}' \
@@ -144,6 +146,7 @@ jobs:
               docker logs yamtrack-helper-ci || true
               exit "$result"
             }
+          docker exec yamtrack-helper-ci sh -ec 'test "$(id -u)" -ne 0 && test -w /data'
           echo 'Helper readiness check passed.'
       - name: Export the tested helper image
         if: github.ref_type == 'tag'

@@ -25,6 +25,21 @@ TV_PUBLIC_URL=http://tv-helper.example:8765
 
 ```sh
 cd /path/to/WebOS_Yamtrack
+mkdir -p data
+```
+
+On a Linux host using rootful Docker, give the helper's container user access to the session directory before starting it. The same commands migrate an existing deployment while keeping its pairings. Stop an existing helper before changing ownership.
+
+```sh
+sudo chown 10001:10001 data
+sudo chmod 0700 data
+if [ -f data/sessions.json ]; then
+  sudo chown 10001:10001 data/sessions.json
+  sudo chmod 0600 data/sessions.json
+fi
+```
+
+```sh
 docker compose -p yamtrack-tv up -d --build
 docker compose -p yamtrack-tv logs --tail=50
 ```
@@ -41,7 +56,7 @@ The helper uses the following paths and defaults. [Compose configuration](compos
 
 From a phone on your home Wi-Fi, open `/__tv/pair` at `TV_PUBLIC_URL`. Seeing a code-entry form confirms the helper is reachable. If necessary, allow TCP port **8765** from your LAN in the host's firewall. The helper container also needs to reach `YAMTRACK_URL`.
 
-The helper is intended for your trusted LAN. It handles authenticated sessions over the existing local HTTP connection; keep port 8765 off the public internet. `data/sessions.json` contains session secrets, is created with mode `0600`, and should stay out of source control. Passwords are forwarded only during the normal phone login and are not saved. Compose logs include Waitress diagnostics and Common Log Format access entries with full URLs, including query strings. URLs can contain calendar tokens or pairing codes.
+Keep port 8765 on a trusted LAN. Local HTTP carries the phone login and TV session credentials in cleartext. Set `TV_LISTEN_IP` in `.env` to the host's LAN IPv4 address to publish only on that address, and use the host firewall to limit who can connect. `data/sessions.json` contains reusable session secrets, is created with mode `0600`, and should stay out of source control. Passwords are forwarded only during the normal phone login and are not saved. Access logs record route names in place of request paths and omit query strings.
 
 If a container on your host cannot reach the host's LAN IP, join the helper to Yamtrack's Docker network and set `YAMTRACK_URL` to its Compose service address, for example `http://yamtrack:8000`. Keep `TV_PUBLIC_URL` at the LAN address that phones and the TV use. The upstream hostname must already be allowed by Yamtrack's Django `ALLOWED_HOSTS` setting.
 
@@ -101,7 +116,7 @@ ares-launch -d lgtv github.sshah7433.webos.yamtrack
 4. Sign into Yamtrack on the phone using your normal app login. If Yamtrack offers **Remember me**, select it for a longer session.
 5. Choose **Approve TV** on the phone. The TV should open your Yamtrack home page within a few seconds.
 
-There is no password entry on the TV. The helper stores the approved phone login's Yamtrack session, associated with a random TV device cookie. The underlying Yamtrack session still expires according to your server's settings; pair again when it expires. Logging out of that shared session also disconnects the TV. The helper expects Django's default `sessionid` cookie and a login-protected homepage, as in your described installation.
+The phone uses Yamtrack's local login during an active pairing. The helper forwards the login page and its static assets during that window. Other Yamtrack routes require an approved TV cookie. Account recovery, registration, and external sign-in flows should be accessed at the normal Yamtrack address. The helper stores the approved phone login's Yamtrack session and expects Django's default `sessionid` cookie and a homepage that requires sign-in. The underlying Yamtrack session expires according to your server's settings. Logging out of the shared session also disconnects the TV.
 
 After helper/container restarts, the `./data` bind mount preserves the approved session. Losing the TV app's cookies, reinstalling the app, or deleting that data may require pairing again.
 
@@ -184,7 +199,7 @@ npx --yes esbuild@0.28.2 /path/to/Yamtrack/src/static/js/libraries/chartjs-4.4.9
   --outfile=helper/static/vendor/chartjs-4.4.9.chrome68.min.js
 ```
 
-Waitress logs `Task queue depth` when incoming requests outnumber free workers. A single page can send several parallel asset requests, and each proxied request holds a worker while waiting on Yamtrack. The helper starts with eight workers. If warnings persist, check response times on the upstream Yamtrack server and set `TV_THREADS` in Compose’s environment if the host has room for more concurrent requests. Recreate the helper to apply the setting. [Waitress worker configuration](https://docs.pylonsproject.org/projects/waitress/en/stable/arguments.html#threads)
+Waitress logs `Task queue depth` when incoming requests outnumber free workers. By default, the helper allows six concurrent upstream requests across eight workers, leaving two workers available for local requests. Each upstream response has a 16 MiB limit and a 15-second read budget. If warnings persist, check Yamtrack's response times and adjust `TV_THREADS` if the host has room for more concurrency. Recreate the helper to apply the setting. [Waitress worker configuration](https://docs.pylonsproject.org/projects/waitress/en/stable/arguments.html#threads)
 
 To remove the app through the CLI:
 

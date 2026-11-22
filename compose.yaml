@@ -3,8 +3,15 @@ services:
     image: ${YAMTRACK_TV_IMAGE:-yamtrack-tv:local}
     build: .
     restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
     ports:
-      - "8765:8765"
+      - "${TV_LISTEN_IP:-0.0.0.0}:8765:8765"
     environment:
       YAMTRACK_URL: ${YAMTRACK_URL:?Set YAMTRACK_URL to your Yamtrack origin}
       TV_PUBLIC_URL: ${TV_PUBLIC_URL:?Set TV_PUBLIC_URL to the TV helper origin}
