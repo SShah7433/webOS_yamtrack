@@ -129,14 +129,14 @@ These color-key shortcuts apply while the Yamtrack app is running. Any Glasshous
 
 GitHub Actions tests the helper, smoke-tests the Docker image, and builds the webOS IPK, SHA-256 checksum, deployment bundle, and Glasshouse `repo.json` catalog on pull requests and release tag pushes. Find those files in the `yamtrack-webos-<version>` artifact for the run.
 
-Push a `vX.Y.Z` tag, such as `v0.1.18`, on the commit you want to release. The workflow uses the tag version for the packaged app manifest and release artifacts. Local and untagged builds use the version in `app/appinfo.json`. The workflow publishes the smoke-tested helper images for Linux amd64, arm64, and arm/v7 under a single version tag at `ghcr.io/sshah7433/webos_yamtrack`. It also attaches the webOS files and platform-specific Docker archives with checksums to the GitHub Release.
+Push a `vX.Y.Z` tag, such as `v0.1.18`, on the commit you want to release. The workflow uses the tag version for the packaged app manifest and release artifacts. Local and untagged builds use the version in `app/appinfo.json`. The workflow publishes the smoke-tested helper images for Linux amd64, arm64, and arm/v7 at `ghcr.io/sshah7433/webos_yamtrack` under both the version tag and `latest`. Each successful image publish updates `latest`. The workflow also attaches the webOS files and platform-specific Docker archives with checksums to the GitHub Release.
 
 Once a release includes `repo.json`, add its [latest release catalog](https://github.com/SShah7433/webOS_yamtrack/releases/latest/download/repo.json) in Glasshouse under **Apps → Other app catalogs → Add catalog**. Use the full catalog URL so Glasshouse follows the latest release. The catalog lists the TV launcher and its checksum. Deploy the helper on your LAN and pair the TV after installing the app. [Glasshouse catalog instructions](https://rorygallagher2024.github.io/glasshouse/dashboard/apps/#other-app-catalogs)
 
-To deploy from GitHub Container Registry, replace `0.1.18` with a published version. Docker selects the image for your host. A new GHCR package is private by default and requires login to pull. Set the package visibility to public if you want anonymous pulls. [GitHub package visibility settings](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility)
+To deploy from GitHub Container Registry, use `latest` or pin a published version such as `0.1.18`. Docker selects the image for your host. A new GHCR package is private by default and requires login to pull. Set the package visibility to public if you want anonymous pulls. [GitHub package visibility settings](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility)
 
 ```sh
-YAMTRACK_TV_IMAGE=ghcr.io/sshah7433/webos_yamtrack:0.1.18 docker compose -p yamtrack-tv up -d --no-build --pull always
+YAMTRACK_TV_IMAGE=ghcr.io/sshah7433/webos_yamtrack:latest docker compose -p yamtrack-tv up -d --no-build --pull always
 ```
 
 For offline deployment, download the helper archive for your Docker host from the release. On a Raspberry Pi 5, use `linux-arm64` for 64-bit Raspberry Pi OS or `linux-armv7` for 32-bit. Use `linux-amd64` on an Intel or AMD PC. On the Docker host, run the commands below with the filename for your platform. [Docker image loading](https://docs.docker.com/reference/cli/docker/image/load/)

@@ -215,9 +215,11 @@ jobs:
             references+=("$reference")
           done
 
-          docker manifest create "$image:$VERSION" "${references[@]}"
-          docker manifest annotate "$image:$VERSION" "$image:$VERSION-linux-armv7" --variant v7
-          docker manifest push --purge "$image:$VERSION"
+          for tag in "$VERSION" latest; do
+            docker manifest create "$image:$tag" "${references[@]}"
+            docker manifest annotate "$image:$tag" "$image:$VERSION-linux-armv7" --variant v7
+            docker manifest push --purge "$image:$tag"
+          done
       - name: Publish the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
