@@ -1,5 +1,6 @@
 """Adapt Yamtrack responses for the LG CX browser."""
 import hashlib
+from pathlib import Path
 import re
 
 from .legacy_css import lower_css
@@ -38,6 +39,9 @@ def rewrite_html(body):
 
 
 def rewrite_script(path, body):
+    if path == "/static/js/libraries/chartjs-4.4.9.min.js":
+        # The upstream UMD bundle uses public class fields, which Chromium 68 cannot parse.
+        return (Path(__file__).parent / "static/vendor/chartjs-4.4.9.chrome68.min.js").read_bytes()
     if path == "/static/js/libraries/alpinejs-3.14.9.min.js":
         for modern, legacy in ALPINE_REWRITES.items():
             body = body.replace(modern, legacy)

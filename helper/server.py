@@ -1,4 +1,5 @@
 """Flask routes for LAN-only Yamtrack pairing and TV proxying."""
+from datetime import datetime, timezone
 from functools import partial
 import hashlib
 import html
@@ -17,7 +18,7 @@ from flask import Flask, Response, jsonify, redirect, request, send_from_directo
 from werkzeug.routing import PathConverter
 
 from .compatibility import FONT_LINKS
-from .proxy import cookie_header, cookie_values, proxy, request_upstream
+from .proxy import cookie_header, cookie_values, proxy, request_target, request_upstream
 
 STATIC = Path(__file__).parent / "static"
 DEVICE_COOKIE = "ytv_device"
@@ -25,6 +26,7 @@ PAIR_COOKIE = "ytv_pair"
 TTL = 600
 MAX_BODY = 4 * 1024 * 1024
 SERVER_NAME = "Yamtrack"
+access_log = logging.getLogger("yamtrack.access")
 
 
 def digest(value):
@@ -156,8 +158,17 @@ def create_app(upstream_url=None, public_url=None, state_path=None, *, upstream_
             "Referrer-Policy": "same-origin",
             "X-Frame-Options": "DENY",
         })
-        # Yamtrack paths and query strings can contain calendar tokens and pairing codes.
-        app.logger.info("%r %s %d", request.method, request.endpoint or "unmatched", response.status_code)
+        target = request_target()
+        host = request.headers.get("Host")
+        url = f"{request.scheme}://{host}{target}" if host and target.startswith("/") else target
+        protocol = request.environ.get("SERVER_PROTOCOL", "-")
+        request_line = json.dumps(f"{request.method} {url} {protocol}")
+        timestamp = datetime.now(timezone.utc).strftime("%d/%b/%Y:%H:%M:%S %z")
+        size = response.content_length
+        if request.method == "HEAD" or response.status_code in (204, 304) or response.status_code < 200:
+            size = None
+        access_log.info("%s - - [%s] %s %d %s", request.remote_addr or "-", timestamp,
+                        request_line, response.status_code, size or "-")
         return response
 
     def unavailable(error):
@@ -321,6 +332,12 @@ def main():
         app = create_app()
     except ValueError as error:
         raise SystemExit(str(error)) from None
+    if not access_log.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        access_log.addHandler(handler)
+    access_log.setLevel(logging.INFO)
+    access_log.propagate = False
     serve(app, host=bind, port=port, threads=threads, ident=SERVER_NAME, max_request_body_size=MAX_BODY,
           log_socket_errors=True)
 

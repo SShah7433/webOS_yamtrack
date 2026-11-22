@@ -41,7 +41,7 @@ The helper uses the following paths and defaults. [Compose configuration](compos
 
 From a phone on your home Wi-Fi, open `/__tv/pair` at `TV_PUBLIC_URL`. Seeing a code-entry form confirms the helper is reachable. If necessary, allow TCP port **8765** from your LAN in the host's firewall. The helper container also needs to reach `YAMTRACK_URL`.
 
-The helper is intended for your trusted LAN. It handles authenticated sessions over the existing local HTTP connection; keep port 8765 off the public internet. `data/sessions.json` contains session secrets, is created with mode `0600`, and should stay out of source control. Passwords are forwarded only during the normal phone login and are not saved. Compose logs include Waitress diagnostics and Flask request methods, handler names, and response statuses. The access log omits paths and query strings, which can contain calendar tokens or pairing codes.
+The helper is intended for your trusted LAN. It handles authenticated sessions over the existing local HTTP connection; keep port 8765 off the public internet. `data/sessions.json` contains session secrets, is created with mode `0600`, and should stay out of source control. Passwords are forwarded only during the normal phone login and are not saved. Compose logs include Waitress diagnostics and Common Log Format access entries with full URLs, including query strings. URLs can contain calendar tokens or pairing codes.
 
 If a container on your host cannot reach the host's LAN IP, join the helper to Yamtrack's Docker network and set `YAMTRACK_URL` to its Compose service address, for example `http://yamtrack:8000`. Keep `TV_PUBLIC_URL` at the LAN address that phones and the TV use. The upstream hostname must already be allowed by Yamtrack's Django `ALLOWED_HOSTS` setting.
 
@@ -171,6 +171,14 @@ If the app is blank or cannot connect, open `/__tv/` at `TV_PUBLIC_URL` in the T
 If paired pages look wrong, inspect the app with `ares-inspect -d lgtv --app org.local.yamtrack.tv` and compare your deployed Yamtrack version. webOS 5.x uses Chromium 68; the helper lowers Tailwind layers, common nesting, colors, spacing, and media queries, but is not a complete modern-browser replacement. Yamtrack's own JavaScript and any future frontend changes may need additional compatibility work.
 
 Yamtrack's upstream stylesheet uses a platform font stack. The TV helper serves static WOFF faces derived from upstream's bundled Roboto Flex so the app, pairing screens, and statistics charts load the same font from the LAN. The launcher bootstrap screen, monospace text, and glyphs outside the bundled faces use device fonts. [LG web font guidance](https://webostv.developer.lge.com/develop/getting-started/app-resources)
+
+The TV helper serves a Chromium 68 build of Yamtrack's Chart.js 4.4.9 bundle. To regenerate it from a Yamtrack checkout, run the following from this repository with the path to Yamtrack's original bundle.
+
+```sh
+npx --yes esbuild@0.28.2 /path/to/Yamtrack/src/static/js/libraries/chartjs-4.4.9.min.js \
+  --target=chrome68 --minify-whitespace --legal-comments=inline \
+  --outfile=helper/static/vendor/chartjs-4.4.9.chrome68.min.js
+```
 
 Waitress logs `Task queue depth` when incoming requests outnumber free workers. A single page can send several parallel asset requests, and each proxied request holds a worker while waiting on Yamtrack. The helper starts with eight workers. If warnings persist, check response times on the upstream Yamtrack server and set `TV_THREADS` in Compose’s environment if the host has room for more concurrent requests. Recreate the helper to apply the setting. [Waitress worker configuration](https://docs.pylonsproject.org/projects/waitress/en/stable/arguments.html#threads)
 

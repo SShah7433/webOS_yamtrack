@@ -46,13 +46,13 @@ def request_target():
         target = quote(request.path, safe="/:@!$&'()*+,;=-._~")
         if request.query_string:
             target += "?" + request.query_string.decode("latin-1")
-    if not target.startswith("/") or target.startswith("//"):
-        abort(400)
     return target
 
 
 def proxy(upstream, public_url, state, upstream_request, is_tv, device_key):
     target = request_target()
+    if not target.startswith("/") or target.startswith("//"):
+        abort(400)
     with state.lock:
         session = dict(state.devices.get(device_key, {}))
     if is_tv and not session:

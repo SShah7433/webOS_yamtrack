@@ -55,6 +55,15 @@ body > div > div > main > .container { padding-top:24px; padding-bottom:32px; }
 }
 .relative > .absolute.hover-tap\:opacity-100 > a { display:none; }
 .relative > .absolute.hover-tap\:opacity-100 > div { padding-top:8px; }
+/* Keep poster badges anchored to the artwork above the card actions. */
+.media-grid .relative[x-data] > .relative:first-child {
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:auto auto;
+}
+.media-grid .relative[x-data] > .relative:first-child > a { grid-row:1; }
+.media-grid .relative[x-data] > .relative:first-child > .absolute { grid-area:1 / 1 / 2 / 2; }
+.media-grid .relative[x-data] > .relative:first-child > .hover-tap\:opacity-100 { grid-area:2 / 1 / 3 / 2; }
 .absolute.group-hover\:opacity-100:not(button) { display:none; }
 button.group-hover\:opacity-100 { opacity:1; }
 
@@ -143,7 +152,38 @@ main .relative > [data-ytv-picker] {
 .ytv-media-details [data-ytv-section="streaming"] .gap-x-3 > img { flex-shrink:0; }
 .ytv-search-results main .flex.flex-wrap.gap-x-4 > .flex.gap-x-2 { flex-wrap:wrap; }
 .ytv-search-results main .flex.gap-x-2 > .rounded-md > a + a { border-left:1px solid #52627a; }
-/* The same filter form is used by TV Seasons and the other media libraries. */
+/* Grid gaps keep the shared filter rows together on browsers without flex gap. */
+main #filter-form + .flex.md\:flex-row,
+.ytv-home main [class~="sm:grid-cols-[1fr_auto_1fr]"] {
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  grid-gap:16px;
+  align-items:start;
+}
+main #filter-form + .flex > .flex.flex-wrap.gap-2,
+.ytv-home main [class~="sm:grid-cols-[1fr_auto_1fr]"] > .flex {
+  display:grid;
+  grid-gap:8px;
+  grid-auto-flow:column;
+}
+main #filter-form + .flex > .flex.flex-wrap.gap-2 {
+  grid-template-columns:minmax(0,max-content) minmax(0,max-content) auto;
+  justify-content:start;
+}
+.ytv-home main [class~="sm:grid-cols-[1fr_auto_1fr]"] > * { grid-column:auto; }
+.ytv-home main [class~="sm:grid-cols-[1fr_auto_1fr]"] > .flex {
+  grid-template-columns:repeat(2,minmax(0,max-content));
+  justify-self:center;
+}
+main #filter-form + .flex > .relative.grow > svg,
+main #filter-form + .flex > .relative.grow > #search-indicator {
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  pointer-events:none;
+}
+main #filter-form + .flex > .flex.flex-wrap.gap-2 > .relative > button > svg,
+.ytv-home main [class~="sm:grid-cols-[1fr_auto_1fr]"] > .flex svg { flex-shrink:0; }
 main #filter-form + .flex > .flex.flex-wrap.gap-2 > .rounded-md > a + a {
   border-left:1px solid #52627a;
 }
@@ -195,6 +235,14 @@ main #filter-form + .flex [data-ytv-picker] button[aria-pressed="true"] {
   #ytv-toolbar .ytv-mobile-menu { display:inline-block; }
 }
 @media(min-width:768px) {
+  main #filter-form + .flex.md\:flex-row {
+    grid-template-columns:minmax(12rem,1fr) minmax(0,max-content);
+  }
+  .ytv-home main [class~="sm:grid-cols-[1fr_auto_1fr]"] {
+    grid-template-columns:minmax(0,1fr) minmax(0,max-content);
+    align-items:center;
+  }
+  .ytv-home main [class~="sm:grid-cols-[1fr_auto_1fr]"] > h1 { justify-self:start; }
   .ytv-media-details nav[data-ytv-sections].max-md\:hidden { display:flex; }
   .ytv-media-details nav[data-ytv-sections].md\:hidden { display:none; }
   .ytv-media-details main .container > [x-data] > .flex.md\:flex-row {

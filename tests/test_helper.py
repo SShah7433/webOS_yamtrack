@@ -12,7 +12,7 @@ import unittest
 from unittest.mock import Mock, patch
 from urllib.parse import urlencode
 
-from helper.server import MAX_BODY, create_app, main
+from helper.server import MAX_BODY, access_log, create_app, main
 from helper.legacy_css import lower_css
 
 
@@ -326,6 +326,16 @@ class Integration(unittest.TestCase):
                 self.assertNotIn(b'?.', script)
                 self.assertIn(b'?.', self.request(path, self.phone)[2])
 
+    def test_statistics_uses_the_legacy_chart_bundle_on_tv(self):
+        self.pair()
+        self.upstream_request = lambda *_args: (200, [('Content-Type', 'application/javascript')], b'upstream-chart')
+        path = '/static/js/libraries/chartjs-4.4.9.min.js'
+        status, _, body = self.request(path, self.tv)
+        self.assertEqual(status, 200)
+        self.assertIn(b'Chart.js v4.4.9', body)
+        self.assertNotIn(b'static defaults=', body)
+        self.assertEqual(self.request(path, self.phone)[2], b'upstream-chart')
+
     def test_tv_date_picker_routes_query_changes_through_page_navigation(self):
         self.pair()
         path = '/static/js/date-range.js?123'
@@ -356,17 +366,24 @@ class Integration(unittest.TestCase):
 
 
 class Startup(unittest.TestCase):
-    def test_request_logs_omit_pairing_codes_and_calendar_tokens(self):
-        app = create_app('http://yamtrack.test', 'http://tv.test', state_path='',
+    def test_access_logs_include_full_urls(self):
+        origin = 'http://tv.test:8765'
+        app = create_app('http://yamtrack.test', origin, state_path='',
                          upstream_request=lambda *_args: (200, [], b'calendar'))
         client = app.test_client()
-        with self.assertLogs(app.logger, level='INFO') as logs:
-            client.get('/__tv/pair?code=123456', base_url='http://tv.test')
-            client.get('/calendar/ical/private-token', base_url='http://tv.test')
-        self.assertEqual([entry.getMessage() for entry in logs.records], [
-            "'GET' pairing_form 200",
-            "'GET' forward 200",
-        ])
+        paths = ['/__tv/pair?code=123456', '/calendar/download/sample%2Dtoken?x=a+b&x=%2F']
+        with self.assertLogs(access_log, level='INFO') as logs:
+            pairing = client.get(paths[0], base_url=origin)
+            client.get(paths[1], base_url=origin)
+            client.head(paths[1], base_url=origin)
+        self.assertEqual(len(logs.records), 3)
+        prefix = r'^127\.0\.0\.1 - - \[\d{2}/[A-Za-z]{3}/\d{4}:\d{2}:\d{2}:\d{2} \+0000\] '
+        for record, entry in zip(logs.records, [
+            f'"GET {origin}{paths[0]} HTTP/1.1" 200 {pairing.content_length}',
+            f'"GET {origin}{paths[1]} HTTP/1.1" 200 8',
+            f'"HEAD {origin}{paths[1]} HTTP/1.1" 200 -',
+        ]):
+            self.assertRegex(record.getMessage(), prefix + re.escape(entry) + '$')
 
     def test_helper_origins_are_required_and_normalized(self):
         with patch.dict(os.environ, {}, clear=True):
